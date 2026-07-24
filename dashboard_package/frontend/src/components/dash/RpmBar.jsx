@@ -1,7 +1,7 @@
 import { REDLINE, SHIFT_RPM } from "@/lib/dashUtils";
 
 // Center-out LED style RPM bar. Segments light from the middle outward.
-export default function RpmBar({ rpm, testId }) {
+export default function RpmBar({ rpm, testId, heightClass = "h-[22px]" }) {
   const perSide = 22;
   const frac = Math.max(0, Math.min(1, rpm / REDLINE));
   const litPerSide = Math.round(frac * perSide);
@@ -35,7 +35,7 @@ export default function RpmBar({ rpm, testId }) {
   return (
     <div
       data-testid={testId}
-      className={`flex items-center gap-[2px] w-full h-[22px] ${shift ? "shift-flash" : ""}`}
+      className={`flex items-center gap-[2px] w-full ${heightClass} ${shift ? "shift-flash" : ""}`}
     >
       {left}
       <div className="w-[3px]" />

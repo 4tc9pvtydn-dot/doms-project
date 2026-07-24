@@ -26,14 +26,11 @@ export default function RidePage({ data, settings, clock }) {
   return (
     <div className="carbon absolute inset-0 flex flex-col px-4 pt-2 pb-7" data-testid="ride-page">
       {/* Top bar */}
-      <div className="flex items-center gap-3 h-[26px]">
-        <div className="digital text-[15px] font-extrabold tracking-widest whitespace-nowrap">
+      <div className="flex items-center justify-between h-[26px]">
+        <div className="digital text-[16px] font-extrabold tracking-widest whitespace-nowrap">
           <span className="t-white">DOMS</span> <span className="t-amber">RB252</span>
         </div>
-        <div className="flex-1">
-          <RpmBar rpm={data.rpm} testId="rpm-bar" />
-        </div>
-        <div className="digital text-[16px] font-bold tabnum t-white w-[52px] text-right" data-testid="clock">
+        <div className="digital text-[16px] font-bold tabnum t-white text-right" data-testid="clock">
           {clock}
         </div>
       </div>
@@ -43,6 +40,9 @@ export default function RidePage({ data, settings, clock }) {
         <VerticalBar value={data.fuel / 100} status={fuel} label="FUEL" icon={<Fuel size={11} />} testId="fuel-bar" />
 
         <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="w-[300px] mb-2">
+            <RpmBar rpm={data.rpm} testId="rpm-bar" heightClass="h-[34px]" />
+          </div>
           <div className="flex items-baseline">
             <motion.div
               key="spd"
