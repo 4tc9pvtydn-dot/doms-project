@@ -60,12 +60,12 @@ export default function SettingsPage({ settings, setSettings, onShutdown }) {
         <Row icon={<Gauge size={14} />} label="CHT Warn Limits (°C)" testId="setting-limits">
           <div className="flex items-center gap-2">
             <span className="text-[11px] t-amber">Amber</span>
-            <input type="range" min="150" max="210" value={settings.limits.chtAmber}
+            <input type="range" min="100" max="210" value={settings.limits.chtAmber}
               onChange={(e) => set({ limits: { ...settings.limits, chtAmber: Number(e.target.value) } })}
               className="w-[80px] accent-amber-400" data-testid="cht-amber-slider" />
             <span className="digital w-[34px] text-right t-amber">{settings.limits.chtAmber}</span>
             <span className="text-[11px] t-red ml-2">Red</span>
-            <input type="range" min="190" max="240" value={settings.limits.chtRed}
+            <input type="range" min="130" max="240" value={settings.limits.chtRed}
               onChange={(e) => set({ limits: { ...settings.limits, chtRed: Number(e.target.value) } })}
               className="w-[80px] accent-red-500" data-testid="cht-red-slider" />
             <span className="digital w-[34px] text-right t-red">{settings.limits.chtRed}</span>
