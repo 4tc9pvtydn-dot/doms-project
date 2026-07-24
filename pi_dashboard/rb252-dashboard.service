@@ -1,0 +1,15 @@
+[Unit]
+Description=DOMS RB252 Dashboard
+After=multi-user.target
+
+[Service]
+Type=simple
+User=__USER__
+Environment=SDL_VIDEODRIVER=kmsdrm
+WorkingDirectory=__DIR__
+ExecStart=__DIR__/venv/bin/python __DIR__/main.py --fullscreen
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
