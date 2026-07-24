@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only testing of Lambretta RB252 Digital Dashboard V2. All critical UI features (startup screen -> ride page, 5-page navigation via ArrowLeft/Right, page indicator dots, ride data elements, unit switching MPH/KPH, clock toggle, brightness slider, GPS reset trip A/B, performance reset, shutdown overlay + restart flow) work correctly. Simulated telemetry updates continuously. Two observations: (1) warning-banner mechanism is wired correctly but the simulated CHT rarely rises high enough to trigger 'CYLINDER TEMP CRITICAL' even with sliders at minimum (150 amber / 190 red); over 60s observation CHT peaked at ~173°C while danger requires >=198°C. (2) Pointer-drag swipe on swipe-area did not reliably trigger page change in one attempt (likely due to CSS transform scaling and pointer event dispatch), while keyboard navigation works perfectly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "CHT warning banner via slider", "issue": "Setting cht-amber-slider to 150 and cht-red-slider to 190 (their minimums) does NOT trigger the red warning-banner within a reasonable time window (60s+) because the telemetry simulator's CHT converges to a target driven by rpm/throttle and rarely exceeds ~173-180C in typical simulated cruising. The logic in dashUtils.chtStatus requires t >= red+8 (=198C) for the danger flag / banner. Consider lowering the slider min bounds (e.g. amber 100, red 130) or briefly boosting simulated CHT for demo/testing so this feature is actually reachable via UI.", "affected_selectors": ["cht-amber-slider","cht-red-slider","warning-banner"]},
+      {"flow": "Pointer drag swipe navigation on swipe-area", "issue": "A synthetic mouse-drag (down at cx+200, move to cx-250, up) did not always advance to next page. Keyboard ArrowLeft/ArrowRight works reliably. onPointerDown/Up use e.clientX; may need pointer events instead of mouse events on some setups. Not a blocker as keyboard/touch on device is expected to work.", "affected_selectors": ["swipe-area"]}
+    ],
+    "design_issues": [
+      {"screen": "Global viewport", "issues": ["Dashboard is fixed 640x480 scaled with CSS transform. On 1920x1080 desktop it appears centered with large black borders (expected for target Pi 4B display)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Consider lowering min values on cht-amber-slider (currently 150) and cht-red-slider (currently 190), or add a small demo/test hook to force CHT high so the CYLINDER TEMP CRITICAL warning banner is actually observable via UI. Currently the wiring is correct but practically unreachable via slider adjustment alone within seconds.",
+    "Optional: Use pointerdown/pointerup events (or Playwright touchscreen) if you want the drag-swipe to work reliably in automated tests inside the scaled dash-frame."
+  ],
+  "critical_code_review_comments": [
+    "chtStatus threshold uses hardcoded '+8' hysteresis before danger flag - documented behavior but non-obvious; slider min bounds don't allow user to lower red enough to actually trigger the danger flag from cruise CHT values.",
+    "App.js swipe uses mousedown/up (e.clientX) rather than pointer events; consider onPointerDown/onPointerUp React handlers with pointerType handling for touchscreen reliability.",
+    "useTelemetry.js CHT model: 0.02 damping per 100ms tick means ~50s time-constant; combined with random speed bands, effective steady-state CHT rarely nears configured red threshold - acceptable for realism but hides feature."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "95%"},
+  "test_credentials": "None (no auth)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "22/22 core UI assertions passed on first pass (startup, ride elements, page navigation via keyboard, MPH<->KPH switching, clock toggle, brightness slider, page indicator, shutdown overlay, restart returning to startup, page dots). Additional pass: gps reset-tripa/tripb buttons, perf reset, shutdown-overlay, restart -> startup-screen -> ride-page all work. Only warning-banner and pointer-drag swipe are the two items to re-verify if main agent changes CHT threshold bounds or swipe handling. Use keyboard arrows for navigation - reliable inside scaled dash-frame."
+}
