@@ -15,7 +15,7 @@ USE_REAL_SENSORS = True
 
 # --- GPS (UART) ---
 GPS_PORT = "/dev/serial0"   # Pi UART (GPIO14/15, pins 8/10)
-GPS_BAUD = 9600
+GPS_BAUD = 38400
 
 # --- Power ---
 # True  = the on-screen POWER OFF actually shuts the Pi down.
