@@ -99,11 +99,18 @@ class App:
     def do_shutdown(self):
         self.confirm_shutdown = False
         if cfg.ALLOW_SHUTDOWN:
-            try:
-                subprocess.Popen(["sudo", "shutdown", "-h", "now"])
-                return
-            except Exception:
-                pass
+            # -n = non-interactive: fail fast if no passwordless rule,
+            # rather than hanging or half-acting (which looked like a reboot).
+            for cmd in (["sudo", "-n", "systemctl", "poweroff"],
+                        ["sudo", "-n", "poweroff"],
+                        ["sudo", "-n", "shutdown", "-h", "now"]):
+                try:
+                    r = subprocess.run(cmd, capture_output=True, timeout=8)
+                    if r.returncode == 0:
+                        return
+                except Exception:
+                    continue
+        # Couldn't power off (or not allowed) -> show halted screen, don't loop.
         self.shutdown_overlay = True
 
     def reboot_ui(self):
@@ -368,11 +375,31 @@ def run_selftest(app, canvas):
         page.draw(canvas)
         for rect, cb in page.buttons:
             cb()
-    # shutdown confirm flow (ALLOW_SHUTDOWN path guarded)
+    # shutdown confirm flow + poweroff command path
     app.request_shutdown()
     assert app.confirm_shutdown
     app.cancel_shutdown()
     assert not app.confirm_shutdown
+    # verify do_shutdown issues a real poweroff command when allowed
+    import main as _m
+    calls = []
+
+    class _R:
+        returncode = 0
+
+    def _fake_run(cmd, *a, **k):
+        calls.append(cmd)
+        return _R()
+
+    _orig_run, _m.subprocess.run = _m.subprocess.run, _fake_run
+    _orig_allow, cfg.ALLOW_SHUTDOWN = cfg.ALLOW_SHUTDOWN, True
+    app.confirm_shutdown = True
+    app.shutdown_overlay = False
+    app.do_shutdown()
+    _m.subprocess.run = _orig_run
+    cfg.ALLOW_SHUTDOWN = _orig_allow
+    assert calls and "poweroff" in " ".join(calls[0]), f"no poweroff command issued: {calls}"
+    assert not app.shutdown_overlay, "should power off, not fall back to halted overlay"
     # hybrid telemetry: fake GPS speed overrides sim, others simulated
     class FakeSensors:
         def read_speed_mph(self): return 42.0

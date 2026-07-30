@@ -25,8 +25,9 @@ sudo raspi-config nonint do_serial_hw 0 || true
 sudo raspi-config nonint do_serial_cons 1 || true
 
 echo ">> Allowing passwordless power off (for the on-screen POWER OFF button)..."
-echo "$USER_NAME ALL=(ALL) NOPASSWD:/sbin/shutdown,/sbin/poweroff" | \
+echo "$USER_NAME ALL=(ALL) NOPASSWD:/usr/bin/systemctl poweroff,/usr/bin/systemctl reboot,/usr/sbin/poweroff,/sbin/poweroff,/usr/sbin/shutdown,/sbin/shutdown" | \
   sudo tee /etc/sudoers.d/rb252-shutdown > /dev/null
+sudo chmod 440 /etc/sudoers.d/rb252-shutdown
 
 echo ">> Self-test..."
 "$DIR/venv/bin/python" "$DIR/main.py" --selftest
