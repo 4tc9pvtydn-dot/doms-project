@@ -245,5 +245,5 @@ class SettingsPage(Page):
 
         # Shutdown
         sd = pygame.Rect(20, 332, 600, 44)
-        button(surf, sd, "SHUTDOWN", f["btn"], color=(200, 30, 30))
+        button(surf, sd, "POWER OFF", f["btn"], color=(200, 30, 30))
         add(sd, lambda: self.app.request_shutdown())

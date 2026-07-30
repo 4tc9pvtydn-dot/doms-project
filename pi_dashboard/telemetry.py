@@ -116,16 +116,36 @@ class Telemetry:
             self.sats = max(4, min(12, self.sats + (-1 if random.random() < 0.5 else 1)))
 
     def _read_real(self, dt):
+        """Hybrid: simulate a baseline, then override with any live readings
+        the hardware provides (methods returning None keep the simulated value)."""
+        self._simulate(dt)
         s = self.sensors
-        self.speed = s.read_speed_mph()
-        self.rpm = s.read_rpm()
-        self.cht = s.read_cht()
-        self.afr = s.read_afr()
-        self.fuel = s.read_fuel_pct()
-        self.volt = s.read_voltage()
-        self.sats = s.read_satellites()
-        self.gear = gear_for_speed(self.speed)
-        self.throttle = 0.0
+        v = s.read_speed_mph()
+        if v is not None:
+            self.speed = v
+            self.gear = gear_for_speed(v)
+            self.throttle = 0.0
+        v = s.read_rpm()
+        if v is not None:
+            self.rpm = v
+        v = s.read_cht()
+        if v is not None:
+            self.cht = v
+        v = s.read_afr()
+        if v is not None:
+            self.afr = v
+        v = s.read_fuel_pct()
+        if v is not None:
+            self.fuel = v
+            self._fuel_real = True
+        else:
+            self._fuel_real = False
+        v = s.read_voltage()
+        if v is not None:
+            self.volt = v
+        v = s.read_satellites()
+        if v is not None:
+            self.sats = v
 
     def update(self, dt):
         if self.use_real and self.sensors is not None:
@@ -141,7 +161,7 @@ class Telemetry:
         self.ride_time += dt
         if self.speed > 1 or self.gear > 0:
             self.runtime += dt
-        if not self.use_real:
+        if not self.use_real or not getattr(self, "_fuel_real", False):
             self.fuel = max(0.0, self.fuel - mi * 0.9)
 
         self.fan = self.cht > 170

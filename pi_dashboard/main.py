@@ -2,9 +2,9 @@
 """
 DOMS RB252 - Lambretta Digital Dashboard (Pygame)
 
-Run on a laptop for testing:      python main.py
-Run full-screen (on the Pi):      python main.py --fullscreen
-Headless smoke test:              python main.py --selftest
+Laptop test:      python main.py
+Full-screen (Pi): python main.py --fullscreen
+Headless test:    python main.py --selftest
 """
 import os
 import sys
@@ -12,7 +12,6 @@ import time
 import argparse
 import subprocess
 
-# Allow headless import for --selftest before creating a window.
 if "--selftest" in sys.argv:
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -22,9 +21,9 @@ import pygame  # noqa: E402
 import config as cfg  # noqa: E402
 from theme import (  # noqa: E402
     carbon_bg, get_font, WHITE, AMBER, DIM, set_hw_brightness,
-    cht_status, afr_status,
+    cht_status, afr_status, draw_text,
 )
-from widgets import page_dots, warning_banner  # noqa: E402
+from widgets import page_dots, warning_banner, button  # noqa: E402
 from telemetry import Telemetry  # noqa: E402
 from sensors import Sensors  # noqa: E402
 from pages import RidePage, EnginePage, GpsPage, PerformancePage, SettingsPage  # noqa: E402
@@ -32,8 +31,9 @@ from pages import RidePage, EnginePage, GpsPage, PerformancePage, SettingsPage  
 W, H = cfg.WIDTH, cfg.HEIGHT
 BOOT_SECONDS = 2.6
 FADE_SECONDS = 0.4
-SWIPE_THRESHOLD = 50
-TAP_MOVE_MAX = 14
+SWIPE_THRESHOLD = 45
+TAP_MOVE_MAX = 16
+DOTS_CY = 468
 
 
 def build_fonts():
@@ -51,6 +51,7 @@ def build_fonts():
         "btn": get_font(15),
         "boot_big": get_font(46, digital=True),
         "boot_sub": get_font(30, digital=True),
+        "modal": get_font(20),
     }
 
 
@@ -71,6 +72,7 @@ class App:
             PerformancePage(self), SettingsPage(self),
         ]
         self.shutdown_overlay = False
+        self.confirm_shutdown = False
         self.blink2 = False
         self.fullscreen = fullscreen
 
@@ -87,19 +89,37 @@ class App:
         self.settings["brightness"] = b
         set_hw_brightness(b)
 
+    # ---- shutdown flow (with confirm) ----
     def request_shutdown(self):
+        self.confirm_shutdown = True
+
+    def cancel_shutdown(self):
+        self.confirm_shutdown = False
+
+    def do_shutdown(self):
+        self.confirm_shutdown = False
         if cfg.ALLOW_SHUTDOWN:
             try:
                 subprocess.Popen(["sudo", "shutdown", "-h", "now"])
+                return
             except Exception:
-                self.shutdown_overlay = True
-        else:
-            self.shutdown_overlay = True
+                pass
+        self.shutdown_overlay = True
 
     def reboot_ui(self):
         self.shutdown_overlay = False
         self.telemetry.reset_all()
         self.page_index = 0
+
+    def dot_index_at(self, cx, cy):
+        if cy < DOTS_CY - 16:
+            return None
+        gap = 16
+        startx = 320 - (len(self.pages) - 1) * gap / 2
+        for i in range(len(self.pages)):
+            if abs(cx - (startx + i * gap)) < 12:
+                return i
+        return None
 
     def warning_message(self):
         cn, cd = cht_status(self.data["cht"], self.settings["cht_amber"], self.settings["cht_red"])
@@ -113,7 +133,6 @@ class App:
 
 def draw_boot(surf, fonts, elapsed):
     surf.blit(carbon_bg(W, H), (0, 0))
-    from theme import draw_text, RED
     draw_text(surf, "DOMS", fonts["boot_big"], WHITE, center=(320, 190))
     draw_text(surf, "RB252", fonts["boot_sub"], AMBER, center=(320, 240))
     draw_text(surf, "INITIALISING...", fonts["label_sm"], DIM, center=(320, 300))
@@ -126,14 +145,29 @@ def draw_boot(surf, fonts, elapsed):
 
 def draw_shutdown(surf, fonts):
     surf.fill((0, 0, 0))
-    from theme import draw_text
     pygame.draw.circle(surf, DIM, (320, 190), 24, 3)
     pygame.draw.line(surf, DIM, (320, 172), (320, 196), 3)
     draw_text(surf, "SYSTEM HALTED", fonts["label"], DIM, center=(320, 250))
     r = pygame.Rect(250, 285, 140, 40)
-    from widgets import button
     button(surf, r, "RESTART", fonts["btn"])
     return r
+
+
+def draw_confirm(surf, fonts):
+    ov = pygame.Surface((W, H))
+    ov.set_alpha(190)
+    ov.fill((0, 0, 0))
+    surf.blit(ov, (0, 0))
+    box = pygame.Rect(140, 150, 360, 180)
+    pygame.draw.rect(surf, (20, 21, 25), box, border_radius=14)
+    pygame.draw.rect(surf, (90, 20, 20), box, 2, border_radius=14)
+    draw_text(surf, "POWER OFF?", fonts["modal"], WHITE, center=(320, 195))
+    draw_text(surf, "The Pi will shut down.", fonts["label_sm"], DIM, center=(320, 225))
+    yes = pygame.Rect(165, 262, 150, 46)
+    no = pygame.Rect(325, 262, 150, 46)
+    button(surf, yes, "POWER OFF", fonts["btn"], color=(200, 30, 30))
+    button(surf, no, "CANCEL", fonts["btn"])
+    return yes, no
 
 
 def to_canvas(pos, disp):
@@ -170,24 +204,56 @@ def main():
     start = time.time()
     booted = False
     fade_start = None
-
-    # transition state
     trans = {"active": False, "dir": 0, "t": 0.0, "from": 0}
     press = {"pos": None, "moved": 0.0}
 
     def goto(idx):
         idx = max(0, min(len(app.pages) - 1, idx))
-        if idx != app.page_index:
+        if idx != app.page_index and not trans["active"]:
             trans["active"] = True
             trans["dir"] = 1 if idx > app.page_index else -1
             trans["t"] = 0.0
             trans["from"] = app.page_index
             app.page_index = idx
 
+    def pointer_down(cx, cy):
+        press["pos"] = (cx, cy)
+        press["moved"] = 0.0
+
+    def pointer_move(cx, cy):
+        if press["pos"] is not None:
+            press["moved"] = max(press["moved"], abs(cx - press["pos"][0]))
+
+    def pointer_up(cx, cy):
+        if press["pos"] is None:
+            return
+        dx = cx - press["pos"][0]
+        press["pos"] = None
+        # modal / overlays first
+        if app.confirm_shutdown:
+            if app._confirm_yes.collidepoint((cx, cy)):
+                app.do_shutdown()
+            elif app._confirm_no.collidepoint((cx, cy)):
+                app.cancel_shutdown()
+            return
+        if app.shutdown_overlay:
+            if getattr(app, "_restart_rect", None) and app._restart_rect.collidepoint((cx, cy)):
+                app.reboot_ui()
+            return
+        if trans["active"]:
+            return
+        if abs(dx) > SWIPE_THRESHOLD:
+            goto(app.page_index + (1 if dx < 0 else -1))
+        elif press["moved"] < TAP_MOVE_MAX:
+            dot = app.dot_index_at(cx, cy)
+            if dot is not None:
+                goto(dot)
+            else:
+                app.pages[app.page_index].handle_tap((cx, cy))
+
     running = True
     while running:
-        dt = clock.tick(60) / 1000.0
-        dt = min(dt, 0.05)
+        dt = min(clock.tick(60) / 1000.0, 0.05)
         app.blink2 = int(time.time() * 2) % 2 == 0
 
         for e in pygame.event.get():
@@ -203,24 +269,21 @@ def main():
                 elif e.key == pygame.K_f:
                     pygame.display.toggle_fullscreen()
             elif e.type == pygame.MOUSEBUTTONDOWN:
-                press["pos"] = to_canvas(e.pos, display)
-                press["moved"] = 0.0
-            elif e.type == pygame.MOUSEMOTION and press["pos"] is not None:
-                cp = to_canvas(e.pos, display)
-                press["moved"] = max(press["moved"], abs(cp[0] - press["pos"][0]))
-            elif e.type == pygame.MOUSEBUTTONUP and press["pos"] is not None:
-                cp = to_canvas(e.pos, display)
-                dx = cp[0] - press["pos"][0]
-                if app.shutdown_overlay:
-                    if getattr(app, "_restart_rect", None) and app._restart_rect.collidepoint(cp):
-                        app.reboot_ui()
-                elif abs(dx) > SWIPE_THRESHOLD and not trans["active"]:
-                    goto(app.page_index + (1 if dx < 0 else -1))
-                elif press["moved"] < TAP_MOVE_MAX and not trans["active"]:
-                    app.pages[app.page_index].handle_tap(cp)
-                press["pos"] = None
+                cx, cy = to_canvas(e.pos, display)
+                pointer_down(cx, cy)
+            elif e.type == pygame.MOUSEMOTION:
+                cx, cy = to_canvas(e.pos, display)
+                pointer_move(cx, cy)
+            elif e.type == pygame.MOUSEBUTTONUP:
+                cx, cy = to_canvas(e.pos, display)
+                pointer_up(cx, cy)
+            elif e.type == pygame.FINGERDOWN:
+                pointer_down(e.x * W, e.y * H)
+            elif e.type == pygame.FINGERMOTION:
+                pointer_move(e.x * W, e.y * H)
+            elif e.type == pygame.FINGERUP:
+                pointer_up(e.x * W, e.y * H)
 
-        # update sim
         if booted and not app.shutdown_overlay:
             app.telemetry.update(dt)
             app.data = app.telemetry.sample()
@@ -256,9 +319,11 @@ def main():
             msg = app.warning_message()
             if msg:
                 warning_banner(canvas, msg)
-            page_dots(canvas, len(app.pages), app.page_index, 468)
+            page_dots(canvas, len(app.pages), app.page_index, DOTS_CY)
 
-            # boot fade-in
+            if app.confirm_shutdown:
+                app._confirm_yes, app._confirm_no = draw_confirm(canvas, app.fonts)
+
             if fade_start is not None:
                 fe = time.time() - fade_start
                 if fe < FADE_SECONDS:
@@ -269,7 +334,6 @@ def main():
                 else:
                     fade_start = None
 
-        # brightness dim overlay (visual night-dim; also drives hw backlight)
         b = app.settings["brightness"]
         if b < 100:
             dim = pygame.Surface((W, H))
@@ -277,7 +341,6 @@ def main():
             dim.fill((0, 0, 0))
             canvas.blit(dim, (0, 0))
 
-        # scale canvas to the real display
         if display.get_size() != (W, H):
             pygame.transform.scale(canvas, display.get_size(), display)
         else:
@@ -288,7 +351,7 @@ def main():
 
 
 def run_selftest(app, canvas):
-    """Render every page + exercise taps headlessly to catch crashes."""
+    # render every page
     for i, page in enumerate(app.pages):
         app.page_index = i
         for _ in range(5):
@@ -296,16 +359,37 @@ def run_selftest(app, canvas):
             app.data = app.telemetry.sample()
             app.blink2 = True
             page.draw(canvas)
-    # exercise interactive taps
+    # navigation logic
+    assert app.dot_index_at(320, DOTS_CY) is not None, "centre dot not hittable"
+    d0 = app.dot_index_at(320 - 2 * 16, DOTS_CY)
+    assert d0 == 0, f"left dot should be page 0, got {d0}"
+    # interactive taps on gps/perf/settings
     for page in (app.pages[2], app.pages[3], app.pages[4]):
         page.draw(canvas)
         for rect, cb in page.buttons:
             cb()
-    app.set_brightness(-30)
-    app.set_brightness(20)
+    # shutdown confirm flow (ALLOW_SHUTDOWN path guarded)
     app.request_shutdown()
-    draw_shutdown(canvas, app.fonts)
-    print("SELFTEST OK - rendered %d pages" % len(app.pages))
+    assert app.confirm_shutdown
+    app.cancel_shutdown()
+    assert not app.confirm_shutdown
+    # hybrid telemetry: fake GPS speed overrides sim, others simulated
+    class FakeSensors:
+        def read_speed_mph(self): return 42.0
+        def read_satellites(self): return 7
+        def read_rpm(self): return None
+        def read_cht(self): return None
+        def read_afr(self): return None
+        def read_fuel_pct(self): return None
+        def read_voltage(self): return None
+    from telemetry import Telemetry
+    t = Telemetry(FakeSensors(), True)
+    t.update(0.1)
+    s = t.sample()
+    assert abs(s["speed"] - 42.0) < 0.001, "real GPS speed not applied"
+    assert s["sats"] == 7, "real sats not applied"
+    assert s["rpm"] > 0, "simulated rpm should still run"
+    print("SELFTEST OK - pages render, nav works, GPS hybrid applied")
     pygame.quit()
     return 0
 

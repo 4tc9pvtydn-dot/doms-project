@@ -114,3 +114,42 @@ pi_dashboard/
 ```
 
 Fonts: Orbitron & Chakra Petch (SIL Open Font License).
+
+---
+
+## Live data & controls (v2 update)
+
+**Navigation on the touchscreen**
+- **Swipe** left/right to change pages, **or tap a page dot** at the bottom to jump straight to a page (works even if swipe feels fiddly).
+- Arrow keys still work if a keyboard is attached.
+
+**Power off from the screen**
+- Settings page → **POWER OFF** → confirm. With `ALLOW_SHUTDOWN = True` (default)
+  and the sudo rule that `install.sh` adds, this cleanly shuts the Pi down.
+
+**GPS (wired first)** — `USE_REAL_SENSORS = True` runs a **hybrid**: any sensor
+that returns real data is used live; anything not wired yet stays simulated, so
+the whole dash keeps working while you bring hardware online one piece at a time.
+
+GPS wiring used (UART):
+| GPS pin | Pi physical pin | Note |
+|---|---|---|
+| VCC | Pin 1 (3.3V) or Pin 2 (5V if module supports it) | |
+| GND | Pin 6 | |
+| TX  | Pin 10 (GPIO15 / RXD) | GPS TX → Pi RX |
+| RX  | Pin 8  (GPIO14 / TXD) | GPS RX → Pi TX |
+
+Enable the UART (also done by `install.sh`):
+```bash
+sudo raspi-config nonint do_serial_hw 0     # enable serial hardware
+sudo raspi-config nonint do_serial_cons 1   # disable serial login console
+sudo reboot
+```
+The GPS port/baud are set in `config.py` (`/dev/serial0`, 9600). Real GPS drives
+**speed, gear and satellites**; RPM/CHT/AFR/fuel/voltage remain simulated until
+you fill in their `read_*` methods in `sensors.py`.
+
+**Note on pygame:** on the Pi we use the **system** pygame (`apt install python3-pygame`)
+because the `pip` build lacks `kmsdrm` (needed to draw with no desktop). The venv
+is created with `--system-site-packages` so it can see it. `install.sh` handles this.
+

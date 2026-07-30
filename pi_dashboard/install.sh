@@ -1,23 +1,34 @@
 #!/usr/bin/env bash
-# One-shot installer for the DOMS RB252 dashboard on Raspberry Pi OS.
-# Sets up a Python venv, installs pygame, and enables boot-on-power-up.
+# Installer for the DOMS RB252 dashboard on Raspberry Pi OS (Bookworm).
+# Uses the system pygame (built WITH kmsdrm) so it can draw with no desktop,
+# sets up GPS UART + shutdown permission, and enables boot-on-power-up.
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 USER_NAME="$(whoami)"
 
-echo ">> Installing system packages (pygame SDL runtime)..."
+echo ">> Installing system packages (pygame with kmsdrm, serial)..."
 sudo apt-get update
-sudo apt-get install -y python3-venv python3-pip \
-  libsdl2-2.0-0 libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
-  libfreetype6 libportmidi0
+sudo apt-get install -y python3-pygame python3-serial \
+  libsdl2-2.0-0 libsdl2-ttf-2.0-0 libsdl2-image-2.0-0 python3-venv
 
-echo ">> Creating virtual environment..."
-python3 -m venv "$DIR/venv"
+echo ">> Adding $USER_NAME to video/render/input/tty groups (screen + touch)..."
+sudo usermod -aG video,render,input,tty "$USER_NAME"
+
+echo ">> Creating venv that can see the system pygame..."
+python3 -m venv --system-site-packages "$DIR/venv"
 "$DIR/venv/bin/pip" install --upgrade pip
 "$DIR/venv/bin/pip" install -r "$DIR/requirements.txt"
 
-echo ">> Quick self-test..."
+echo ">> Enabling UART for the GPS (disables serial login console)..."
+sudo raspi-config nonint do_serial_hw 0 || true
+sudo raspi-config nonint do_serial_cons 1 || true
+
+echo ">> Allowing passwordless power off (for the on-screen POWER OFF button)..."
+echo "$USER_NAME ALL=(ALL) NOPASSWD:/sbin/shutdown,/sbin/poweroff" | \
+  sudo tee /etc/sudoers.d/rb252-shutdown > /dev/null
+
+echo ">> Self-test..."
 "$DIR/venv/bin/python" "$DIR/main.py" --selftest
 
 echo ">> Installing systemd service (boot straight to dashboard)..."
@@ -25,11 +36,13 @@ sed "s|__DIR__|$DIR|g; s|__USER__|$USER_NAME|g" \
   "$DIR/rb252-dashboard.service" | sudo tee /etc/systemd/system/rb252-dashboard.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable rb252-dashboard.service
+sudo systemctl set-default multi-user.target   # boot to console (no desktop)
 
 echo ""
 echo "=================================================================="
-echo " Done. The dashboard will launch automatically on next boot."
+echo " Done.  REBOOT to launch:  sudo reboot"
 echo " Start now:   sudo systemctl start rb252-dashboard"
 echo " View logs:   journalctl -u rb252-dashboard -f"
 echo " Stop:        sudo systemctl stop rb252-dashboard"
+echo " Desktop back: sudo systemctl set-default graphical.target"
 echo "=================================================================="
