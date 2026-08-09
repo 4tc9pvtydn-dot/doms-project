@@ -22,9 +22,8 @@ AFR_ADC_CH = 0     # ADS1115 A0
 FUEL_ADC_CH = 1    # ADS1115 A1
 BATT_ADC_CH = 2    # ADS1115 A2
 
-# Battery: an external divider must bring pack voltage below 3.3V.
-# Example R1=39k (to +batt), R2=10k (to GND): ratio = (39+10)/10 = 4.9
-BATT_DIVIDER = 4.9
+# Arduino 0-25V voltage sensor module (30k/7.5k) -> ratio 5.0
+BATT_DIVIDER = 5.0
 
 # AFR: 0-5V controller output -> divider into the ADS (max 3.3V).
 # Example R1=10k, R2=20k -> measured = Vafr*20/30 = Vafr*0.667 -> AFR_DIVIDER = 1.5
