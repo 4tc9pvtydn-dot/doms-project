@@ -34,8 +34,8 @@ AFR_V5 = 20.0      # AFR that 5V represents
 
 # Fuel: resistive sender. Wiring: 3.3V -- Rref -- [node -> ADS A1] -- sender -- GND
 FUEL_REF_OHMS = 100.0     # the fixed reference resistor you fit
-FUEL_OHMS_EMPTY = 0.0     # <-- YOUR sender's ohms when EMPTY
-FUEL_OHMS_FULL = 90.0     # <-- YOUR sender's ohms when FULL
+FUEL_OHMS_EMPTY = 240.0   # sender ohms when EMPTY
+FUEL_OHMS_FULL = 33.0     # sender ohms when FULL
 
 # ======================================================================
 #  MAX31855 K-type thermocouple (CHT) - SPI: MOSI/MISO/SCLK + a CS pin
