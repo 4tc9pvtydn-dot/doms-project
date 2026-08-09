@@ -21,7 +21,7 @@ import pygame  # noqa: E402
 import config as cfg  # noqa: E402
 from theme import (  # noqa: E402
     carbon_bg, get_font, WHITE, AMBER, DIM, set_hw_brightness,
-    cht_status, afr_status, draw_text,
+    cht_status, afr_status, draw_text, load_cover_image,
 )
 from widgets import page_dots, warning_banner, button  # noqa: E402
 from telemetry import Telemetry  # noqa: E402
@@ -34,6 +34,7 @@ FADE_SECONDS = 0.4
 SWIPE_THRESHOLD = 45
 TAP_MOVE_MAX = 16
 DOTS_CY = 468
+SHUTDOWN_GRAPHIC_SECONDS = 3.0
 
 
 def build_fonts():
@@ -74,6 +75,8 @@ class App:
         ]
         self.shutdown_overlay = False
         self.confirm_shutdown = False
+        self.powering_down = False
+        self._pd_since = None
         self._ign_off_since = None
         self.ign_countdown = None
         self.blink2 = False
@@ -99,8 +102,16 @@ class App:
     def cancel_shutdown(self):
         self.confirm_shutdown = False
 
+    def begin_poweroff(self):
+        """Show the goodbye graphic first; the main loop issues the actual
+        poweroff after SHUTDOWN_GRAPHIC_SECONDS."""
+        self.confirm_shutdown = False
+        self.powering_down = True
+        self._pd_since = None
+
     def do_shutdown(self):
         self.confirm_shutdown = False
+        self.powering_down = False
         if cfg.ALLOW_SHUTDOWN:
             # -n = non-interactive: fail fast if no passwordless rule,
             # rather than hanging or half-acting (which looked like a reboot).
@@ -131,7 +142,7 @@ class App:
             remaining = cfg.IGNITION_OFF_DELAY - (now - self._ign_off_since)
             self.ign_countdown = max(0.0, remaining)
             if remaining <= 0:
-                self.do_shutdown()
+                self.begin_poweroff()
         else:
             self._ign_off_since = None
             self.ign_countdown = None
@@ -157,15 +168,27 @@ class App:
 
 
 def draw_boot(surf, fonts, elapsed):
-    surf.blit(carbon_bg(W, H), (0, 0))
-    draw_text(surf, "DOMS", fonts["boot_big"], WHITE, center=(320, 190))
-    draw_text(surf, "RB252", fonts["boot_sub"], AMBER, center=(320, 240))
-    draw_text(surf, "INITIALISING...", fonts["label_sm"], DIM, center=(320, 300))
-    bar = pygame.Rect(190, 320, 260, 8)
-    pygame.draw.rect(surf, (28, 29, 33), bar, border_radius=4)
+    img = load_cover_image("boot_logo.jpg", W, H)
+    if img is not None:
+        surf.blit(img, (0, 0))
+    else:
+        surf.blit(carbon_bg(W, H), (0, 0))
+        draw_text(surf, "DOMS", fonts["boot_big"], WHITE, center=(320, 190))
+        draw_text(surf, "RB252", fonts["boot_sub"], AMBER, center=(320, 240))
+    bar = pygame.Rect(190, 452, 260, 6)
+    pygame.draw.rect(surf, (28, 29, 33), bar, border_radius=3)
     prog = max(0.0, min(1.0, elapsed / BOOT_SECONDS))
     if prog > 0:
-        pygame.draw.rect(surf, AMBER, (bar.x, bar.y, int(bar.w * prog), bar.h), border_radius=4)
+        pygame.draw.rect(surf, AMBER, (bar.x, bar.y, int(bar.w * prog), bar.h), border_radius=3)
+
+
+def draw_powering_down(surf, fonts):
+    img = load_cover_image("shutdown_screen.jpg", W, H)
+    if img is not None:
+        surf.blit(img, (0, 0))
+    else:
+        surf.fill((0, 0, 0))
+        draw_text(surf, "UNTIL NEXT TIME DUDE", fonts["modal"], AMBER, center=(320, 240))
 
 
 def draw_shutdown(surf, fonts):
@@ -264,7 +287,7 @@ def main():
         # modal / overlays first
         if app.confirm_shutdown:
             if app._confirm_yes.collidepoint((cx, cy)):
-                app.do_shutdown()
+                app.begin_poweroff()
             elif app._confirm_no.collidepoint((cx, cy)):
                 app.cancel_shutdown()
             return
@@ -316,7 +339,7 @@ def main():
             elif e.type == pygame.FINGERUP:
                 pointer_up(e.x * W, e.y * H)
 
-        if booted and not app.shutdown_overlay:
+        if booted and not app.shutdown_overlay and not app.powering_down:
             app.telemetry.update(dt)
             app.data = app.telemetry.sample()
             app.check_ignition(time.time())
@@ -329,6 +352,13 @@ def main():
         # ---- draw ----
         if not booted:
             draw_boot(canvas, app.fonts, elapsed)
+        elif app.powering_down:
+            draw_powering_down(canvas, app.fonts)
+            now = time.time()
+            if app._pd_since is None:
+                app._pd_since = now
+            elif now - app._pd_since >= SHUTDOWN_GRAPHIC_SECONDS:
+                app.do_shutdown()
         elif app.shutdown_overlay:
             app._restart_rect = draw_shutdown(canvas, app.fonts)
         else:
@@ -428,7 +458,7 @@ def run_selftest(app, canvas):
     cfg.ALLOW_SHUTDOWN = _orig_allow
     assert calls and "poweroff" in " ".join(calls[0]), f"no poweroff command issued: {calls}"
     assert not app.shutdown_overlay, "should power off, not fall back to halted overlay"
-    # ignition-sensed auto power-off
+    # ignition-sensed auto power-off -> shows goodbye graphic, then powers off
     _orig_ign, cfg.IGNITION_SENSE_ENABLED = cfg.IGNITION_SENSE_ENABLED, True
 
     class _IgnOff:
@@ -436,14 +466,16 @@ def run_selftest(app, canvas):
             return False
 
     app.sensors = _IgnOff()
-    _shut = {"n": 0}
-    app.do_shutdown = lambda: _shut.__setitem__("n", _shut["n"] + 1)
+    app.powering_down = False
     app._ign_off_since = None
     app.check_ignition(1000.0)
     assert app.ign_countdown is not None and app.ign_countdown > 0, "no countdown started"
     app.check_ignition(1000.0 + cfg.IGNITION_OFF_DELAY + 0.1)
-    assert _shut["n"] >= 1, "ignition-off did not trigger shutdown"
+    assert app.powering_down, "ignition-off did not start power-down (goodbye graphic)"
     cfg.IGNITION_SENSE_ENABLED = _orig_ign
+    # goodbye + boot graphics load (cover-scaled to screen)
+    assert _m.load_cover_image("shutdown_screen.jpg", W, H) is not None, "shutdown graphic missing"
+    assert _m.load_cover_image("boot_logo.jpg", W, H) is not None, "boot graphic missing"
     # hybrid telemetry: fake GPS speed overrides sim, others simulated
     class FakeSensors:
         def read_speed_mph(self): return 42.0

@@ -67,6 +67,38 @@ def carbon_bg(w, h):
     return surf
 
 
+# ---- Asset images (boot / shutdown) scaled to cover the screen ----
+_img_cache = {}
+
+
+def load_cover_image(name, w, h):
+    """Load an image from assets/ and scale-to-cover (w, h) keeping aspect,
+    centre-cropped. Cached. Returns None if the file is missing/unreadable."""
+    key = (name, w, h)
+    if key in _img_cache:
+        return _img_cache[key]
+    path = os.path.join(os.path.dirname(__file__), "assets", name)
+    try:
+        img = pygame.image.load(path).convert()
+        iw, ih = img.get_size()
+        scale = max(w / iw, h / ih)
+        nw, nh = max(1, int(iw * scale)), max(1, int(ih * scale))
+        scaled = pygame.transform.smoothscale(img, (nw, nh))
+        out = pygame.Surface((w, h))
+        out.blit(scaled, ((w - nw) // 2, (h - nh) // 2))
+    except Exception:
+        out = None
+    _img_cache[key] = out
+    return out
+
+
+def gps_status(sats):
+    """Return (label, color) describing GPS lock state from satellite count."""
+    if sats is None or sats < 4:
+        return "SEARCHING", AMBER
+    return "FIX", GREEN
+
+
 def draw_text(surf, text, font, color, **anchors):
     """Render text and position via any pygame.Rect anchor kwargs
     (center=, topleft=, topright=, midtop=, midleft=, bottomleft= ...)."""

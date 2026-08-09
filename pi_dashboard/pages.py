@@ -4,7 +4,7 @@ import pygame
 import config as cfg
 from theme import (
     WHITE, AMBER, RED, GREEN, DIM, STATUS_COLOR, carbon_bg, draw_text,
-    fuel_status, cht_status, afr_status, volt_status,
+    fuel_status, cht_status, afr_status, volt_status, gps_status,
     disp_speed, disp_dist, speed_unit, dist_unit, fmt_time,
 )
 from widgets import (
@@ -51,6 +51,12 @@ class RidePage(Page):
         r = draw_text(surf, "DOMS ", f["brand"], WHITE, topleft=(16, 10))
         draw_text(surf, "RB252", f["brand"], AMBER, topleft=(r.right, 10))
         draw_text(surf, self.app.clock_str(), f["clock"], WHITE, topright=(624, 9))
+
+        # GPS lock status (centre, under RPM bar area)
+        gl, gc = gps_status(d["sats"])
+        gtxt = f"GPS {gl}" if gl == "SEARCHING" else f"GPS FIX {int(d['sats'])}"
+        gcol = gc if not (gl == "SEARCHING" and self.app.blink2) else DIM
+        draw_text(surf, gtxt, f["label_sm"], gcol, midtop=(320, 12))
 
         # Side bars
         fn, fd = fuel_status(d["fuel"])
@@ -129,7 +135,10 @@ class GpsPage(Page):
         f = self.app.fonts
         surf.blit(carbon_bg(640, 480), (0, 0))
         draw_text(surf, "GPS", f["title"], DIM, topleft=(20, 16))
-        draw_text(surf, f"{int(d['sats'])} SAT", f["num_md"], GREEN, topright=(620, 12))
+        gl, gc = gps_status(d["sats"])
+        gcol = gc if not (gl == "SEARCHING" and self.app.blink2) else DIM
+        gtxt = f"SEARCHING  {int(d['sats'])} SAT" if gl == "SEARCHING" else f"FIX  {int(d['sats'])} SAT"
+        draw_text(surf, gtxt, f["num_md"], gcol, topright=(620, 12))
 
         su = speed_unit(st["units"])
         du = dist_unit(st["units"])
