@@ -1,26 +1,55 @@
 """
-DOMS RB252 Dashboard - configuration.
+DOMS RB252 Dashboard - configuration & sensor calibration.
 """
 
 # --- Engine / display tuning ---
-REDLINE = 8500          # RPM at which the bar is full / redline
-SHIFT_RPM = 7800        # RPM at which the shift-light starts flashing
+REDLINE = 8500
+SHIFT_RPM = 7800
 
 # --- Data source ---
-# True  = read live values from sensors.py where available.
-#         Any sensor method that returns None falls back to the simulator,
-#         so you can bring hardware online one sensor at a time.
-# False = full simulation (great for the bench / VS Code).
+# True = read live sensors where wired; anything returning None stays simulated,
+# so you can bring hardware online one sensor at a time.
 USE_REAL_SENSORS = True
 
 # --- GPS (UART) ---
 GPS_PORT = "/dev/serial0"   # Pi UART (GPIO14/15, pins 8/10)
 GPS_BAUD = 38400
 
+# ======================================================================
+#  ADS1115 analog inputs  (AFR, fuel, battery)  - I2C: SDA pin3, SCL pin5
+# ======================================================================
+AFR_ADC_CH = 0     # ADS1115 A0
+FUEL_ADC_CH = 1    # ADS1115 A1
+BATT_ADC_CH = 2    # ADS1115 A2
+
+# Battery: an external divider must bring pack voltage below 3.3V.
+# Example R1=39k (to +batt), R2=10k (to GND): ratio = (39+10)/10 = 4.9
+BATT_DIVIDER = 4.9
+
+# AFR: 0-5V controller output -> divider into the ADS (max 3.3V).
+# Example R1=10k, R2=20k -> measured = Vafr*20/30 = Vafr*0.667 -> AFR_DIVIDER = 1.5
+AFR_DIVIDER = 1.5
+AFR_V0 = 10.0      # AFR that 0V represents  (check your controller!)
+AFR_V5 = 20.0      # AFR that 5V represents
+
+# Fuel: resistive sender. Wiring: 3.3V -- Rref -- [node -> ADS A1] -- sender -- GND
+FUEL_REF_OHMS = 100.0     # the fixed reference resistor you fit
+FUEL_OHMS_EMPTY = 0.0     # <-- YOUR sender's ohms when EMPTY
+FUEL_OHMS_FULL = 90.0     # <-- YOUR sender's ohms when FULL
+
+# ======================================================================
+#  MAX31855 K-type thermocouple (CHT) - SPI: MOSI/MISO/SCLK + a CS pin
+# ======================================================================
+CHT_CS_PIN = "D5"          # chip-select (BCM5 = physical pin 29)
+
+# ======================================================================
+#  RPM pickup  (KEEP OFF until a safe conditioning circuit is built!)
+# ======================================================================
+RPM_ENABLED = False        # set True only after wiring an opto/divider
+RPM_GPIO = 17              # BCM17 = physical pin 11
+RPM_PULSES_PER_REV = 1     # sparks per crank revolution
+
 # --- Power ---
-# True  = the on-screen POWER OFF actually shuts the Pi down.
-#         install.sh adds the passwordless sudo rule for this.
-# False = POWER OFF just shows a "SYSTEM HALTED" screen (safe for laptop).
 ALLOW_SHUTDOWN = True
 
 # --- Native panel resolution (Waveshare 3.5" DSI (E)) ---

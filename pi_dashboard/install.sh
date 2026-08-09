@@ -20,9 +20,18 @@ python3 -m venv --system-site-packages "$DIR/venv"
 "$DIR/venv/bin/pip" install --upgrade pip
 "$DIR/venv/bin/pip" install -r "$DIR/requirements.txt"
 
-echo ">> Enabling UART for the GPS (disables serial login console)..."
+echo ">> Enabling UART (GPS), I2C (ADS1115) and SPI (MAX31855)..."
 sudo raspi-config nonint do_serial_hw 0 || true
 sudo raspi-config nonint do_serial_cons 1 || true
+sudo raspi-config nonint do_i2c 0 || true
+sudo raspi-config nonint do_spi 0 || true
+
+echo ">> Installing sensor libraries into the venv..."
+"$DIR/venv/bin/pip" install \
+  adafruit-blinka \
+  adafruit-circuitpython-ads1x15 \
+  adafruit-circuitpython-max31855 \
+  gpiozero lgpio || echo "!! sensor libs failed - GPS still works; retry later"
 
 echo ">> Allowing passwordless power off (for the on-screen POWER OFF button)..."
 echo "$USER_NAME ALL=(ALL) NOPASSWD:/usr/bin/systemctl poweroff,/usr/bin/systemctl reboot,/usr/sbin/poweroff,/sbin/poweroff,/usr/sbin/shutdown,/sbin/shutdown" | \
