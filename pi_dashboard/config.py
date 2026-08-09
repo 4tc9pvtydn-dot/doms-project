@@ -48,6 +48,15 @@ RPM_ENABLED = False        # set True only after wiring an opto/divider
 RPM_GPIO = 17              # BCM17 = physical pin 11
 RPM_PULSES_PER_REV = 1     # sparks per crank revolution
 
+# ======================================================================
+#  IGNITION SENSE -> graceful auto power-off when the bike is switched off
+# ======================================================================
+IGNITION_SENSE_ENABLED = False   # set True once the sense circuit is wired
+IGNITION_GPIO = 27               # BCM27 = physical pin 13
+IGNITION_ACTIVE_HIGH = True      # True: pin HIGH when ignition ON
+                                 # False: for an opto that pulls the pin LOW when ON
+IGNITION_OFF_DELAY = 4.0         # seconds OFF before shutdown (ignores stalls/dips)
+
 # --- Power ---
 ALLOW_SHUTDOWN = True
 

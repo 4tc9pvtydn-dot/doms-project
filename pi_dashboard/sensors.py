@@ -44,6 +44,8 @@ class Sensors:
         self._rpm_off = False
         self._rpm_count = 0
         self._rpm_t = time.time()
+        self._ign = None
+        self._ign_off = False
 
     # ------------------------------------------------------------- GPS
     def _open_gps(self):
@@ -204,4 +206,23 @@ class Sensors:
         except Exception as e:
             self._rpm_off = True
             print(f"[sensors] RPM input not available ({e}) - simulated")
+            return None
+
+    # --------------------------------------------------- IGNITION SENSE
+    def ignition_on(self):
+        """True = ignition on, False = off, None = sensing disabled/unavailable.
+        A disconnected sense wire fails SAFE (reads ON) so it won't shut down."""
+        if not cfg.IGNITION_SENSE_ENABLED or self._ign_off:
+            return None
+        try:
+            if self._ign is None:
+                from gpiozero import DigitalInputDevice
+                self._ign = DigitalInputDevice(
+                    cfg.IGNITION_GPIO, pull_up=cfg.IGNITION_ACTIVE_HIGH
+                )
+            val = bool(self._ign.value)
+            return val if cfg.IGNITION_ACTIVE_HIGH else (not val)
+        except Exception as e:
+            self._ign_off = True
+            print(f"[sensors] ignition sense not available ({e})")
             return None

@@ -64,6 +64,7 @@ class App:
         self.telemetry = Telemetry(
             Sensors() if cfg.USE_REAL_SENSORS else None, cfg.USE_REAL_SENSORS
         )
+        self.sensors = self.telemetry.sensors
         self.data = self.telemetry.sample()
         self.fonts = build_fonts()
         self.page_index = 0
@@ -73,6 +74,8 @@ class App:
         ]
         self.shutdown_overlay = False
         self.confirm_shutdown = False
+        self._ign_off_since = None
+        self.ign_countdown = None
         self.blink2 = False
         self.fullscreen = fullscreen
 
@@ -117,6 +120,21 @@ class App:
         self.shutdown_overlay = False
         self.telemetry.reset_all()
         self.page_index = 0
+
+    def check_ignition(self, now):
+        if not cfg.IGNITION_SENSE_ENABLED or self.sensors is None:
+            return
+        state = self.sensors.ignition_on()
+        if state is False:
+            if self._ign_off_since is None:
+                self._ign_off_since = now
+            remaining = cfg.IGNITION_OFF_DELAY - (now - self._ign_off_since)
+            self.ign_countdown = max(0.0, remaining)
+            if remaining <= 0:
+                self.do_shutdown()
+        else:
+            self._ign_off_since = None
+            self.ign_countdown = None
 
     def dot_index_at(self, cx, cy):
         if cy < DOTS_CY - 16:
@@ -175,6 +193,13 @@ def draw_confirm(surf, fonts):
     button(surf, yes, "POWER OFF", fonts["btn"], color=(200, 30, 30))
     button(surf, no, "CANCEL", fonts["btn"])
     return yes, no
+
+
+def draw_ign(surf, fonts, secs):
+    col = (200, 30, 30) if int(time.time() * 2) % 2 == 0 else (120, 10, 10)
+    pygame.draw.rect(surf, col, (0, 200, 640, 80))
+    draw_text(surf, "BIKE OFF - POWERING DOWN", fonts["modal"], WHITE, center=(320, 228))
+    draw_text(surf, f"{secs:.0f}s   (switch on to cancel)", fonts["label"], WHITE, center=(320, 258))
 
 
 def to_canvas(pos, disp):
@@ -294,6 +319,7 @@ def main():
         if booted and not app.shutdown_overlay:
             app.telemetry.update(dt)
             app.data = app.telemetry.sample()
+            app.check_ignition(time.time())
 
         elapsed = time.time() - start
         if not booted and elapsed >= BOOT_SECONDS:
@@ -328,6 +354,8 @@ def main():
                 warning_banner(canvas, msg)
             page_dots(canvas, len(app.pages), app.page_index, DOTS_CY)
 
+            if app.ign_countdown is not None:
+                draw_ign(canvas, app.fonts, app.ign_countdown)
             if app.confirm_shutdown:
                 app._confirm_yes, app._confirm_no = draw_confirm(canvas, app.fonts)
 
@@ -400,6 +428,22 @@ def run_selftest(app, canvas):
     cfg.ALLOW_SHUTDOWN = _orig_allow
     assert calls and "poweroff" in " ".join(calls[0]), f"no poweroff command issued: {calls}"
     assert not app.shutdown_overlay, "should power off, not fall back to halted overlay"
+    # ignition-sensed auto power-off
+    _orig_ign, cfg.IGNITION_SENSE_ENABLED = cfg.IGNITION_SENSE_ENABLED, True
+
+    class _IgnOff:
+        def ignition_on(self):
+            return False
+
+    app.sensors = _IgnOff()
+    _shut = {"n": 0}
+    app.do_shutdown = lambda: _shut.__setitem__("n", _shut["n"] + 1)
+    app._ign_off_since = None
+    app.check_ignition(1000.0)
+    assert app.ign_countdown is not None and app.ign_countdown > 0, "no countdown started"
+    app.check_ignition(1000.0 + cfg.IGNITION_OFF_DELAY + 0.1)
+    assert _shut["n"] >= 1, "ignition-off did not trigger shutdown"
+    cfg.IGNITION_SENSE_ENABLED = _orig_ign
     # hybrid telemetry: fake GPS speed overrides sim, others simulated
     class FakeSensors:
         def read_speed_mph(self): return 42.0
