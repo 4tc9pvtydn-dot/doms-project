@@ -48,6 +48,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable rb252-dashboard.service
 sudo systemctl set-default multi-user.target   # boot to console (no desktop)
 
+echo ">> Setting up branded boot splash (DOMS logo via Plymouth)..."
+bash "$DIR/setup-boot-splash.sh" || echo "!! boot splash setup failed - dashboard still works"
+
 echo ""
 echo "=================================================================="
 echo " Done.  REBOOT to launch:  sudo reboot"

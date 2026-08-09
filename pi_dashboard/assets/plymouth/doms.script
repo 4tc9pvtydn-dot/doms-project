@@ -1,0 +1,19 @@
+# DOMS RB252 boot splash - fills the screen with the logo image.
+bg = Image("splash.png");
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+scaled = bg.Scale(sw, sh);
+sprite = Sprite(scaled);
+sprite.SetX(0);
+sprite.SetY(0);
+sprite.SetZ(-100);
+
+# Keep the splash static; the dashboard app takes over once boot completes.
+fun refresh_callback() {
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# Show password prompts (if any) as plain text so boot never stalls silently.
+fun display_password_callback(prompt, bullets) {
+}
+Plymouth.SetDisplayPasswordFunction(display_password_callback);

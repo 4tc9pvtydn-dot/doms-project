@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=DOMS RB252
+Description=DOMS RB252 boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/doms
+ScriptFile=/usr/share/plymouth/themes/doms/doms.script
