@@ -13,6 +13,59 @@ def _blink(hz):
     return int(time.time() * hz) % 2 == 0
 
 
+def rpm_tach(surf, rect, rpm, peak, fonts, max_rpm=10000, shift_rpm=7800, redline=8500):
+    """Left-to-right wedge RPM bar: segments grow small->large, 1-10k scale
+    across the top, with a peak-hold marker. Colour zones green/amber/red."""
+    from theme import GREEN
+    x, y, w, h = rect
+    scale_h = 15
+    bar_y = y + scale_h + 2
+    bar_h = h - scale_h - 2
+    base = bar_y + bar_h
+
+    # 1-10k scale labels + ticks across the top
+    for k in range(1, 11):
+        lx = x + (k / 10.0) * w
+        draw_text(surf, str(k), fonts["label_sm"], DIM, midbottom=(int(lx), y + scale_h))
+        pygame.draw.line(surf, (60, 62, 70), (int(lx), bar_y), (int(lx), bar_y + 3), 1)
+
+    # wedge segments
+    n = 50
+    gap = 2
+    seg_w = (w - (n - 1) * gap) / n
+    frac = max(0.0, min(1.0, rpm / max_rpm))
+    lit = round(frac * n)
+    shift = rpm >= shift_rpm
+    hide = shift and not _blink(9)
+    min_h = 5
+    for i in range(n):
+        lvl = (i + 1) / n
+        seg_h = min_h + (bar_h - min_h) * lvl
+        sx = x + i * (seg_w + gap)
+        rpm_at = lvl * max_rpm
+        if rpm_at >= redline:
+            c = RED
+        elif rpm_at >= shift_rpm:
+            c = AMBER
+        elif rpm_at >= 0.6 * max_rpm:
+            c = (214, 222, 92)
+        else:
+            c = GREEN
+        on = i < lit
+        col = c if (on and not hide) else SEG_OFF
+        pygame.draw.rect(surf, col, (int(sx), int(base - seg_h), int(seg_w) + 1, int(seg_h)),
+                         border_radius=1)
+
+    # peak-hold marker
+    if peak and peak > 0:
+        pf = max(0.0, min(1.0, peak / max_rpm))
+        px = int(x + pf * w)
+        pygame.draw.line(surf, WHITE, (px, bar_y - 3), (px, base), 2)
+        pygame.draw.polygon(surf, WHITE, [(px - 4, bar_y - 7), (px + 4, bar_y - 7), (px, bar_y - 2)])
+
+    pygame.draw.line(surf, PANEL_BORDER, (x, base + 1), (x + w, base + 1), 1)
+
+
 def rpm_bar(surf, rect, rpm, redline, shift_rpm):
     """Centre-out LED style RPM bar."""
     x, y, w, h = rect

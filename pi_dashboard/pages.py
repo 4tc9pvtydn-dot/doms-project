@@ -8,7 +8,7 @@ from theme import (
     disp_speed, disp_dist, speed_unit, dist_unit, fmt_time,
 )
 from widgets import (
-    rpm_bar, vertical_bar, stat_tile, button, fan_icon, page_dots,
+    rpm_bar, rpm_tach, vertical_bar, stat_tile, button, fan_icon, page_dots,
 )
 
 
@@ -52,11 +52,16 @@ class RidePage(Page):
         draw_text(surf, "RB252", f["brand"], AMBER, topleft=(r.right, 10))
         draw_text(surf, self.app.clock_str(), f["clock"], WHITE, topright=(624, 9))
 
-        # GPS lock status (centre, under RPM bar area)
+        # Digital RPM readout (headline, centre)
+        rpm = int(d["rpm"])
+        rr = draw_text(surf, f"{rpm:,}", f["num_md"], AMBER, midright=(322, 24))
+        draw_text(surf, "RPM", f["label_sm"], DIM, midleft=(rr.right + 6, 28))
+
+        # GPS lock status (top-left, small)
         gl, gc = gps_status(d["sats"])
         gtxt = f"GPS {gl}" if gl == "SEARCHING" else f"GPS FIX {int(d['sats'])}"
         gcol = gc if not (gl == "SEARCHING" and self.app.blink2) else DIM
-        draw_text(surf, gtxt, f["label_sm"], gcol, midtop=(320, 12))
+        draw_text(surf, gtxt, f["label_sm"], gcol, topleft=(14, 40))
 
         # Side bars
         fn, fd = fuel_status(d["fuel"])
@@ -64,8 +69,9 @@ class RidePage(Page):
         cn, cd = cht_status(d["cht"], st["cht_amber"], st["cht_red"])
         vertical_bar(surf, (596, 98, 26, 316), (d["cht"] - 40) / 200.0, cn, cd, "TEMP", f)
 
-        # RPM bar just above the speed
-        rpm_bar(surf, (170, 48, 300, 34), d["rpm"], cfg.REDLINE, cfg.SHIFT_RPM)
+        # Left-to-right wedge tach: 1-10k scale on top + white peak marker
+        rpm_tach(surf, (108, 52, 424, 44), d["rpm"], d["peakrpm"], f,
+                 max_rpm=10000, shift_rpm=cfg.SHIFT_RPM, redline=cfg.REDLINE)
 
         # Speed + gear
         spd = round(disp_speed(d["speed"], st["units"]))
