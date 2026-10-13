@@ -132,11 +132,19 @@ class App:
         self.telemetry.reset_all()
         self.page_index = 0
 
-    def check_ignition(self, now):
-        if not cfg.IGNITION_SENSE_ENABLED or self.sensors is None:
+    def check_ignition(self, now, volts=None):
+        """Trigger a graceful power-down when main power is lost, detected by
+        either the ignition-sense pin OR the voltage sensor collapsing."""
+        ign = cfg.IGNITION_SENSE_ENABLED
+        vloss = getattr(cfg, "POWER_LOSS_SHUTDOWN", False)
+        if not (ign or vloss):
             return
-        state = self.sensors.ignition_on()
-        if state is False:
+        power_lost = False
+        if ign and self.sensors is not None and self.sensors.ignition_on() is False:
+            power_lost = True
+        if vloss and volts is not None and volts < cfg.POWER_LOSS_VOLTS:
+            power_lost = True
+        if power_lost:
             if self._ign_off_since is None:
                 self._ign_off_since = now
             remaining = cfg.IGNITION_OFF_DELAY - (now - self._ign_off_since)
@@ -342,7 +350,7 @@ def main():
         if booted and not app.shutdown_overlay and not app.powering_down:
             app.telemetry.update(dt)
             app.data = app.telemetry.sample()
-            app.check_ignition(time.time())
+            app.check_ignition(time.time(), app.data.get("volt"))
 
         elapsed = time.time() - start
         if not booted and elapsed >= BOOT_SECONDS:
@@ -473,6 +481,21 @@ def run_selftest(app, canvas):
     app.check_ignition(1000.0 + cfg.IGNITION_OFF_DELAY + 0.1)
     assert app.powering_down, "ignition-off did not start power-down (goodbye graphic)"
     cfg.IGNITION_SENSE_ENABLED = _orig_ign
+    # voltage-collapse auto power-off (backup power-loss via the voltage sensor)
+    _orig_vl, cfg.POWER_LOSS_SHUTDOWN = getattr(cfg, "POWER_LOSS_SHUTDOWN", False), True
+    app.sensors = None
+    app.powering_down = False
+    app._ign_off_since = None
+    app.check_ignition(2000.0, 12.6)                      # power present -> no countdown
+    assert app.ign_countdown is None, "voltage OK should not start a countdown"
+    app.check_ignition(2000.0, 0.3)                       # power collapsed
+    assert app.ign_countdown is not None, "voltage collapse did not start countdown"
+    app.check_ignition(2000.0 + cfg.IGNITION_OFF_DELAY + 0.1, 0.3)
+    assert app.powering_down, "voltage collapse did not start power-down"
+    cfg.POWER_LOSS_SHUTDOWN = _orig_vl
+    app.powering_down = False
+    app._ign_off_since = None
+    app.ign_countdown = None
     # goodbye + boot graphics load (cover-scaled to screen)
     assert _m.load_cover_image("shutdown_screen.jpg", W, H) is not None, "shutdown graphic missing"
     assert _m.load_cover_image("boot_logo.jpg", W, H) is not None, "boot graphic missing"

@@ -55,7 +55,16 @@ IGNITION_SENSE_ENABLED = False   # set True once the sense circuit is wired
 IGNITION_GPIO = 27               # BCM27 = physical pin 13
 IGNITION_ACTIVE_HIGH = True      # True: pin HIGH when ignition ON
                                  # False: for an opto that pulls the pin LOW when ON
-IGNITION_OFF_DELAY = 4.0         # seconds OFF before shutdown (ignores stalls/dips)
+IGNITION_OFF_DELAY = 3.0         # seconds OFF before shutdown (ignores stalls/dips)
+
+# ======================================================================
+#  POWER-LOSS SHUTDOWN via the voltage sensor (no extra parts!)
+#  Wire the 0-25V sensor (ADS1115 A2) to the SWITCHED 12V feed. When you
+#  switch off, that line drops to ~0V; the dashboard sees the voltage
+#  collapse and shuts down cleanly while the 5V backup holds it up.
+# ======================================================================
+POWER_LOSS_SHUTDOWN = False      # set True once the backup + switched feed are wired
+POWER_LOSS_VOLTS = 6.0           # below this = main power lost (12V system)
 
 # --- Power ---
 ALLOW_SHUTDOWN = True
