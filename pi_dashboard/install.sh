@@ -26,6 +26,15 @@ sudo raspi-config nonint do_serial_cons 1 || true
 sudo raspi-config nonint do_i2c 0 || true
 sudo raspi-config nonint do_spi 0 || true
 
+echo ">> Making the GPS UART reliable (PL011 on GPIO14/15, Bluetooth off)..."
+# Without this, /dev/serial0 is the flaky mini-UART and Bluetooth holds the
+# good PL011 - GPS data comes through garbled. disable-bt frees it.
+BOOT=/boot/firmware; [ -d "$BOOT" ] || BOOT=/boot
+CFG="$BOOT/config.txt"
+grep -q "^enable_uart=1" "$CFG" 2>/dev/null || echo "enable_uart=1" | sudo tee -a "$CFG" >/dev/null
+grep -q "^dtoverlay=disable-bt" "$CFG" 2>/dev/null || echo "dtoverlay=disable-bt" | sudo tee -a "$CFG" >/dev/null
+sudo systemctl disable hciuart 2>/dev/null || true
+
 echo ">> Installing sensor libraries into the venv..."
 "$DIR/venv/bin/pip" install \
   adafruit-blinka \
