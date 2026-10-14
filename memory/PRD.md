@@ -43,7 +43,18 @@ Tech pivoted from React to **Python (Pygame)** kiosk app under `/app/pi_dashboar
 - GPS lock status text: Ride page shows centred "GPS SEARCHING" (amber, blinking) vs "GPS FIX n"; GPS page top-right shows "SEARCHING n SAT" vs "FIX n SAT" (SEARCHING when <4 sats). Helps distinguish no-lock from broken module.
 - Verified via headless `--selftest` (pages render, nav, GPS hybrid, ignition→power-down graphic, both graphics load) + rendered PNG previews.
 
-### Pending (Python app)
+### Update 2 (fresh-start + tach + power-loss shutdown)
+- New **wedge RPM tach** (`widgets.rpm_tach`): left-to-right segments grow small->large, 1-10k scale on top, digital RPM readout, white peak-hold marker, green/lime/amber/red zones + shift flash. Wired into RidePage (replaced old centre-out `rpm_bar`).
+- **Voltage-sensor power-loss shutdown** (no extra parts): `config.POWER_LOSS_SHUTDOWN` + `POWER_LOSS_VOLTS=6.0`. `main.check_ignition(now, volts)` now triggers graceful poweroff when the battery sensor (ADS1115 A2, wired to the SWITCHED 12V feed) collapses, OR via the GPIO27 ignition pin. Hybrid-safe (never triggers on simulated volts). Reuses existing `begin_poweroff` + goodbye-graphic flow.
+- **Safer installer**: `install.sh` no longer auto-runs `setup-boot-splash.sh`; keeps getty@tty1 (login prompt) so no lockout. Boot splash is opt-in. `setup-boot-splash.sh` reverted the aggressive console=tty3/getty-disable (the cause of the earlier lockout). Added `recover-desktop.sh` and `FINAL_SETUP.md` (clean-install guide).
+- Hardware wiring guidance delivered: 0-25V voltage sensor -> ADS1115 A2; 5.1V adjustable backup via one Schottky into Pi 5V pin; backup must be 5V (NOT 3.3V - Pi won't run).
+- Backup voltage default `IGNITION_OFF_DELAY` lowered 4.0 -> 3.0s.
+
+### Known field issues (user hardware, not code)
+- SD card corruption -> read-only root, repeatedly, from cutting power without clean shutdown on the bench. Resolution: fresh flash (A2 card / USB SSD) + always `sudo poweroff`. The voltage power-loss shutdown prevents this on the bike.
+- GPS "no satellites": being tested indoors/computer room -> can never lock. Needs clear sky + 5-15 min cold start. Module likely fine. Verify NMEA via `cat /dev/serial0` at 38400 then 9600.
+
+### Backlog (Python app)
 - P1: RPM reading logic in `sensors.py` (stubbed for Pi safety until user builds opto-isolator circuit).
 - P2: AFR reading (pending user's AFR controller + 0-5V mapping).
 - P3: Ride logging to CSV, Bluetooth phone link, EGT/fan status integration.

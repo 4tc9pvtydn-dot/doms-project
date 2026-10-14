@@ -48,14 +48,19 @@ sudo systemctl daemon-reload
 sudo systemctl enable rb252-dashboard.service
 sudo systemctl set-default multi-user.target   # boot to console (no desktop)
 
-echo ">> Setting up branded boot splash (DOMS logo via Plymouth)..."
-bash "$DIR/setup-boot-splash.sh" || echo "!! boot splash setup failed - dashboard still works"
-
 echo ""
 echo "=================================================================="
-echo " Done.  REBOOT to launch:  sudo reboot"
-echo " Start now:   sudo systemctl start rb252-dashboard"
-echo " View logs:   journalctl -u rb252-dashboard -f"
-echo " Stop:        sudo systemctl stop rb252-dashboard"
-echo " Desktop back: sudo systemctl set-default graphical.target"
+echo " Base install done.  REBOOT to launch:  sudo reboot"
+echo ""
+echo " Start now:    sudo systemctl start rb252-dashboard"
+echo " View logs:    journalctl -u rb252-dashboard -f"
+echo " Stop:         sudo systemctl stop rb252-dashboard"
+echo " Desktop back: sudo raspi-config nonint do_boot_behaviour B4"
+echo ""
+echo " A login prompt is always kept (press Ctrl+Alt+F2 for a console),"
+echo " so you can never get locked out."
+echo ""
+echo " OPTIONAL - branded DOMS boot logo (run ONLY after the dashboard"
+echo " is confirmed working):   bash setup-boot-splash.sh"
+echo " If anything goes wrong:  bash recover-desktop.sh"
 echo "=================================================================="
