@@ -13,7 +13,7 @@ USE_REAL_SENSORS = True
 
 # --- GPS (UART) ---
 GPS_PORT = "/dev/serial0"   # Pi UART (GPIO14/15, pins 8/10)
-GPS_BAUD = 38400
+GPS_BAUD = 9600
 
 # ======================================================================
 #  ADS1115 analog inputs  (AFR, fuel, battery)  - I2C: SDA pin3, SCL pin5
