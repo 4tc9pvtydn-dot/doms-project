@@ -36,6 +36,7 @@ grep -q "^dtoverlay=disable-bt" "$CFG" 2>/dev/null || echo "dtoverlay=disable-bt
 sudo systemctl disable hciuart 2>/dev/null || true
 
 echo ">> Enabling the Waveshare 3.5\" DSI (E) 640x480 screen..."
+[ -f "$BOOT/overlays/Waveshare_35DSI.dtbo" ] || sudo wget -q -O "$BOOT/overlays/Waveshare_35DSI.dtbo" https://files.waveshare.com/wiki/common/Waveshare_35DSI.dtbo || echo "   !! could not download screen driver - check internet"
 if ! grep -q "^dtoverlay=waveshare_35DSI" "$CFG"; then
   printf '\n[all]\ndtoverlay=vc4-kms-v3d\ndtoverlay=waveshare_35DSI,35E,dsi1\n' | sudo tee -a "$CFG" >/dev/null
 fi
