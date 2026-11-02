@@ -35,6 +35,11 @@ grep -q "^enable_uart=1" "$CFG" 2>/dev/null || echo "enable_uart=1" | sudo tee -
 grep -q "^dtoverlay=disable-bt" "$CFG" 2>/dev/null || echo "dtoverlay=disable-bt" | sudo tee -a "$CFG" >/dev/null
 sudo systemctl disable hciuart 2>/dev/null || true
 
+echo ">> Enabling the Waveshare 3.5\" DSI (E) 640x480 screen..."
+if ! grep -q "^dtoverlay=waveshare_35DSI" "$CFG"; then
+  printf '\n[all]\ndtoverlay=vc4-kms-v3d\ndtoverlay=waveshare_35DSI,35E,dsi1\n' | sudo tee -a "$CFG" >/dev/null
+fi
+
 echo ">> Installing sensor libraries into the venv..."
 "$DIR/venv/bin/pip" install \
   adafruit-blinka \
