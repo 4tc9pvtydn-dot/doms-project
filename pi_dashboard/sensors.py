@@ -116,9 +116,13 @@ class Sensors:
                 i2c = busio.I2C(board.SCL, board.SDA)
                 self._ads = ADS.ADS1115(i2c)
             if chn not in self._ads_chans:
-                from adafruit_ads1x15.analog_in import AnalogIn
-                pins = [self._ADS.P0, self._ADS.P1, self._ADS.P2, self._ADS.P3]
-                self._ads_chans[chn] = AnalogIn(self._ads, pins[chn])
+                try:
+                    from adafruit_ads1x15.analog_in import AnalogIn
+                except ImportError:
+                    from adafruit_ads1x15 import AnalogIn
+                # library v2 uses ADS.P0..P3, v3+ uses plain channel numbers / Pin.A0..A3
+                pin = getattr(self._ADS, f"P{chn}", chn)
+                self._ads_chans[chn] = AnalogIn(self._ads, pin)
             return self._ads_chans[chn]
         except Exception as e:
             self._ads_off = True
