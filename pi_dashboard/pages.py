@@ -254,9 +254,15 @@ class SettingsPage(Page):
         add(rm, lambda: st.__setitem__("cht_red", max(120, st["cht_red"] - 5)))
         add(rp, lambda: st.__setitem__("cht_red", min(250, st["cht_red"] + 5)))
 
-        # Calibration (info)
-        r = row(272, "SENSOR CALIBRATION")
-        draw_text(surf, "Edit sensors.py on the Pi", f["label"], DIM, midright=(r.right - 16, r.centery))
+        # Live sensor status (LIVE = real hardware, SIM = simulated fallback)
+        r = row(272, "SENSORS")
+        sens = getattr(self.app, "sensors", None)
+        items = sens.status() if sens is not None else [("ALL", "SIM")]
+        x = r.right - 16
+        for name, state in reversed(items):
+            col = GREEN if state == "LIVE" else (DIM if state in ("OFF", "...") else AMBER)
+            rr = draw_text(surf, f"{name} {state}", f["label"], col, midright=(x, r.centery))
+            x = (rr.left if rr is not None else x - 90) - 14
 
         # Shutdown
         sd = pygame.Rect(20, 332, 600, 44)

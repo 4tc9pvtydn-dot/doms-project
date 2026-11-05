@@ -47,6 +47,16 @@ class Sensors:
         self._ign = None
         self._ign_off = False
 
+    def status(self):
+        """Per-sensor LIVE / SIM / OFF for the Settings page."""
+        def st(handle, failed):
+            return "SIM" if failed else ("LIVE" if handle is not None else "...")
+        return [
+            ("GPS", "LIVE" if self.gps is not None else "SIM"),
+            ("ADC", st(self._ads, self._ads_off)),
+            ("CHT", st(self._cht, self._cht_off)),
+            ("RPM", "OFF" if not cfg.RPM_ENABLED else st(self._rpm, self._rpm_off)),
+        ]
     # ------------------------------------------------------------- GPS
     def _open_gps(self):
         if serial is None:

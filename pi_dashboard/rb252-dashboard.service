@@ -6,6 +6,7 @@ After=multi-user.target
 Type=simple
 User=__USER__
 Environment=SDL_VIDEODRIVER=kmsdrm
+Environment=PYTHONUNBUFFERED=1
 WorkingDirectory=__DIR__
 ExecStart=__DIR__/venv/bin/python __DIR__/main.py --fullscreen
 Restart=always
