@@ -201,7 +201,7 @@ class Sensors:
         try:
             if self._rpm is None:
                 from gpiozero import DigitalInputDevice
-                dev = DigitalInputDevice(cfg.RPM_GPIO, pull_up=False)
+                dev = DigitalInputDevice(cfg.RPM_GPIO, pull_up=getattr(cfg, "RPM_PULL_UP", False))
 
                 def _tick():
                     self._rpm_count += 1

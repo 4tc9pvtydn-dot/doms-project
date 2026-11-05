@@ -46,6 +46,7 @@ CHT_CS_PIN = "D5"          # chip-select (BCM5 = physical pin 29)
 # ======================================================================
 RPM_ENABLED = False        # set True only after wiring an opto/divider
 RPM_GPIO = 17              # BCM17 = physical pin 11
+RPM_PULL_UP = True         # Pi's built-in 3.3V pull-up on pin 11 (no external resistor/VCC needed)
 RPM_PULSES_PER_REV = 1     # sparks per crank revolution
 
 # ======================================================================
