@@ -33,6 +33,7 @@ class Sensors:
         self._buf = b""
         self._speed_knots = None
         self._sats = None
+        self._in_view = {}
         self._open_gps()
         # lazy hardware handles + "disabled after failure" flags
         self._ads = None
@@ -52,7 +53,7 @@ class Sensors:
         def st(handle, failed):
             return "SIM" if failed else ("LIVE" if handle is not None else "...")
         return [
-            ("GPS", "LIVE" if self.gps is not None else "SIM"),
+            ("GPS", f"{self._sats or 0}/{sum(self._in_view.values())}" if self.gps is not None else "SIM"),
             ("ADC", st(self._ads, self._ads_off)),
             ("CHT", st(self._cht, self._cht_off)),
             ("RPM", "OFF" if not cfg.RPM_ENABLED else st(self._rpm, self._rpm_off)),
@@ -96,6 +97,8 @@ class Sensors:
                     self._speed_knots = 0.0
             elif talker == "GGA" and len(p) > 7:
                 self._sats = int(p[7]) if p[7] != "" else 0
+            elif talker == "GSV" and len(p) > 3 and p[3] != "":
+                self._in_view[p[0][1:3]] = int(p[3])  # satellites heard, per system
         except (ValueError, IndexError):
             pass
 
@@ -156,10 +159,9 @@ class Sensors:
         try:
             v = ch.voltage
             denom = 3.3 - v
-            if denom <= 0.02:
-                rs = cfg.FUEL_OHMS_FULL
-            else:
-                rs = cfg.FUEL_REF_OHMS * v / denom
+            if denom <= 0.05:
+                return 0.0  # open circuit (sender unplugged / no ground) -> show empty
+            rs = cfg.FUEL_REF_OHMS * v / denom
             span = (cfg.FUEL_OHMS_FULL - cfg.FUEL_OHMS_EMPTY)
             if span == 0:
                 return None

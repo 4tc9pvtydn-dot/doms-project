@@ -260,7 +260,7 @@ class SettingsPage(Page):
         items = sens.status() if sens is not None else [("ALL", "SIM")]
         x = r.right - 16
         for name, state in reversed(items):
-            col = GREEN if state == "LIVE" else (DIM if state in ("OFF", "...") else AMBER)
+            col = AMBER if state == "SIM" else (DIM if state in ("OFF", "...") else GREEN)
             rr = draw_text(surf, f"{name} {state}", f["label"], col, midright=(x, r.centery))
             x = (rr.left if rr is not None else x - 90) - 14
 
