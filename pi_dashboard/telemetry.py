@@ -7,6 +7,7 @@ Telemetry engine.
   still computes the derived values (trips, odo, peaks, 0-30/0-60/quarter...).
 """
 import random
+import config as cfg
 from config import REDLINE
 
 # gear -> (min_mph, max_mph)
@@ -26,6 +27,7 @@ class Telemetry:
     def __init__(self, sensors=None, use_real=False):
         self.sensors = sensors
         self.use_real = use_real
+        self._real_prev = {}
         self.reset_all()
 
     def reset_all(self):
@@ -115,6 +117,13 @@ class Telemetry:
         if random.random() < 0.03:
             self.sats = max(4, min(12, self.sats + (-1 if random.random() < 0.5 else 1)))
 
+    def _smooth(self, key, v, dt, tau):
+        # exponential smoothing; first real reading snaps straight in
+        prev = self._real_prev.get(key)
+        out = v if prev is None or tau <= 0 else prev + (v - prev) * min(1.0, dt / tau)
+        self._real_prev[key] = out
+        return out
+
     def _read_real(self, dt):
         """Hybrid: simulate a baseline, then override with any live readings
         the hardware provides (methods returning None keep the simulated value)."""
@@ -127,7 +136,7 @@ class Telemetry:
             self.throttle = 0.0
         v = s.read_rpm()
         if v is not None:
-            self.rpm = v
+            self.rpm = self._smooth("rpm", v, dt, cfg.RPM_SMOOTH)
         v = s.read_cht()
         if v is not None:
             self.cht = v
@@ -136,7 +145,7 @@ class Telemetry:
             self.afr = v
         v = s.read_fuel_pct()
         if v is not None:
-            self.fuel = v
+            self.fuel = self._smooth("fuel", v, dt, cfg.FUEL_SMOOTH)
             self._fuel_real = True
         else:
             self._fuel_real = False

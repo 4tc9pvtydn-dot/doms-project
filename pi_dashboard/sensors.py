@@ -18,6 +18,7 @@ Wired via:
 ============================================================================
 """
 import time
+from collections import deque
 import config as cfg
 
 try:
@@ -43,8 +44,8 @@ class Sensors:
         self._cht_off = False
         self._rpm = None
         self._rpm_off = False
-        self._rpm_count = 0
-        self._rpm_t = time.time()
+        self._rpm_times = deque(maxlen=2000)
+        self.rpm_hz = 0.0
         self._ign = None
         self._ign_off = False
 
@@ -205,20 +206,28 @@ class Sensors:
                 from gpiozero import DigitalInputDevice
                 dev = DigitalInputDevice(cfg.RPM_GPIO, pull_up=getattr(cfg, "RPM_PULL_UP", False))
 
+                ppr = max(0.1, cfg.RPM_PULSES_PER_REV)
+                min_gap = 60.0 / (cfg.RPM_MAX_VALID * ppr)  # faster than this = electrical noise
+
                 def _tick():
-                    self._rpm_count += 1
+                    t = time.monotonic()
+                    if self._rpm_times and t - self._rpm_times[-1] < min_gap:
+                        return
+                    self._rpm_times.append(t)
 
                 dev.when_activated = _tick
                 self._rpm = dev
-                self._rpm_t = time.time()
-            now = time.time()
-            dt = now - self._rpm_t
-            if dt <= 0:
+            # average over a rolling window instead of per-frame counts
+            now = time.monotonic()
+            win = cfg.RPM_WINDOW
+            while self._rpm_times and now - self._rpm_times[0] > win:
+                self._rpm_times.popleft()
+            ts = list(self._rpm_times)
+            if len(ts) < 2 or now - ts[-1] > 0.5:
+                self.rpm_hz = 0.0
                 return 0.0
-            freq = self._rpm_count / dt
-            self._rpm_count = 0
-            self._rpm_t = now
-            return freq * 60.0 / max(1, cfg.RPM_PULSES_PER_REV)
+            self.rpm_hz = (len(ts) - 1) / (ts[-1] - ts[0])
+            return self.rpm_hz * 60.0 / max(0.1, cfg.RPM_PULSES_PER_REV)
         except Exception as e:
             self._rpm_off = True
             print(f"[sensors] RPM input not available ({e}) - simulated")
