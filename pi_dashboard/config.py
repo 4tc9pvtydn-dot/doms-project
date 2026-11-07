@@ -44,14 +44,14 @@ CHT_CS_PIN = "D5"          # chip-select (BCM5 = physical pin 29)
 # ======================================================================
 #  RPM pickup  (KEEP OFF until a safe conditioning circuit is built!)
 # ======================================================================
-RPM_ENABLED = False        # set True only after wiring an opto/divider
+RPM_ENABLED = True         # opto module on pin 11 (OUT) + Pi GND
 RPM_GPIO = 17              # BCM17 = physical pin 11
 RPM_MAX_VALID = 12000      # pulses faster than this rpm are ignored as noise
 RPM_WINDOW = 0.3           # seconds of pulses averaged per reading
 RPM_SMOOTH = 0.25          # display smoothing time (s); higher = steadier
 FUEL_SMOOTH = 8.0          # fuel smoothing time (s) - stops slosh flicker
 RPM_PULL_UP = True         # Pi's built-in 3.3V pull-up on pin 11 (no external resistor/VCC needed)
-RPM_PULSES_PER_REV = 1     # sparks per crank revolution
+RPM_PULSES_PER_REV = 2     # stator pulses per crank rev (calibrated: 1310 rpm idle)
 
 # ======================================================================
 #  IGNITION SENSE -> graceful auto power-off when the bike is switched off
