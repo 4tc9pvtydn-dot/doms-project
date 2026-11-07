@@ -12,6 +12,8 @@ while True:
     r = s.read_rpm()
     if r is not None:
         print(f"RPM {r:6.0f} | raw pulses {s.rpm_hz:6.1f}/s (PULSES_PER_REV={cfg.RPM_PULSES_PER_REV})")
+    elif not cfg.RPM_ENABLED:
+        print("RPM disabled - set RPM_ENABLED = True in config.py")
     v = s.read_voltage(); f = s.read_fuel_pct(); a = s.read_afr()
     if v is None:
         print("ADS1115 NOT READ - see error above"); time.sleep(1); continue
