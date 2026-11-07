@@ -48,6 +48,8 @@ RPM_ENABLED = True         # opto module on pin 11 (OUT) + Pi GND
 RPM_GPIO = 17              # BCM17 = physical pin 11
 RPM_MAX_VALID = 12000      # pulses faster than this rpm are ignored as noise
 RPM_WINDOW = 0.3           # seconds of pulses averaged per reading
+RPM_GLITCH = 0.6           # ignore a pulse arriving sooner than 60% of the last gap (stator noise)
+RPM_MAX_RISE = 15000       # max displayed rev rise per second (stops instant spikes)
 RPM_SMOOTH = 0.25          # display smoothing time (s); higher = steadier
 FUEL_SMOOTH = 8.0          # fuel smoothing time (s) - stops slosh flicker
 RPM_PULL_UP = True         # Pi's built-in 3.3V pull-up on pin 11 (no external resistor/VCC needed)

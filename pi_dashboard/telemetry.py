@@ -136,6 +136,9 @@ class Telemetry:
             self.throttle = 0.0
         v = s.read_rpm()
         if v is not None:
+            prev = self._real_prev.get("rpm")
+            if prev is not None:
+                v = min(v, prev + cfg.RPM_MAX_RISE * dt)
             self.rpm = self._smooth("rpm", v, dt, cfg.RPM_SMOOTH)
         v = s.read_cht()
         if v is not None:

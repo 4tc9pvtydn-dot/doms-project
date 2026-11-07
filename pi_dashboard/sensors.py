@@ -46,6 +46,8 @@ class Sensors:
         self._rpm_off = False
         self._rpm_times = deque(maxlen=2000)
         self.rpm_hz = 0.0
+        self._rpm_ref = None
+        self.rpm_rejects = 0
         self._ign = None
         self._ign_off = False
 
@@ -211,8 +213,16 @@ class Sensors:
 
                 def _tick():
                     t = time.monotonic()
-                    if self._rpm_times and t - self._rpm_times[-1] < min_gap:
-                        return
+                    if self._rpm_times:
+                        gap = t - self._rpm_times[-1]
+                        if gap < min_gap:
+                            return
+                        # extra stator bumps arrive well before the next real pulse
+                        if self._rpm_ref and gap < cfg.RPM_GLITCH * self._rpm_ref:
+                            self._rpm_ref *= 0.85  # decay so a real fast rev-up still gets through
+                            self.rpm_rejects += 1
+                            return
+                        self._rpm_ref = gap if gap < 0.5 else None
                     self._rpm_times.append(t)
 
                 dev.when_activated = _tick
