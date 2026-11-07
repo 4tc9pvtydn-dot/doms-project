@@ -53,7 +53,7 @@ RPM_MAX_RISE = 15000       # max displayed rev rise per second (stops instant sp
 RPM_SMOOTH = 0.25          # display smoothing time (s); higher = steadier
 FUEL_SMOOTH = 8.0          # fuel smoothing time (s) - stops slosh flicker
 RPM_PULL_UP = True         # Pi's built-in 3.3V pull-up on pin 11 (no external resistor/VCC needed)
-RPM_PULSES_PER_REV = 2     # stator pulses per crank rev (calibrated: 1310 rpm idle)
+RPM_PULSES_PER_REV = 1     # HT-lead wrap pickup: 1 spark per rev (single-cyl 2-stroke)
 
 # ======================================================================
 #  IGNITION SENSE -> graceful auto power-off when the bike is switched off
