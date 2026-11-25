@@ -1,0 +1,11 @@
+# RB250 boot splash - fills the screen with the logo image.
+bg = Image("splash.png");
+scaled = bg.Scale(Window.GetWidth(), Window.GetHeight());
+sprite = Sprite(scaled);
+sprite.SetX(0);
+sprite.SetY(0);
+sprite.SetZ(-100);
+
+fun refresh_callback() {
+}
+Plymouth.SetRefreshFunction(refresh_callback);

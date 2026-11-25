@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=RB250
+Description=RB250 boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/rb250
+ScriptFile=/usr/share/plymouth/themes/rb250/rb250.script

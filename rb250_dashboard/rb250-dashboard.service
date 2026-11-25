@@ -1,5 +1,5 @@
 [Unit]
-Description=DOMS RB252 Dashboard
+Description=RB250 Dashboard
 After=multi-user.target
 
 [Service]
