@@ -157,15 +157,24 @@ def settings_screen(surf, sc, app):
         r = text(surf, sc, f"{name} {state}", 18, col, midleft=(x, 236))
         x = sc.to_design(r.midright)[0] + 26
 
+    if t.ups is None:
+        text(surf, sc, "UPS BATTERY", 18, DIM, midleft=(24, 290))
+        text(surf, sc, "NO SIGNAL", 18, AMBER, midleft=(230, 290))
+    else:
+        uv, up = t.ups
+        ucol = RED if up < cfg.UPS_LOW_PCT else (AMBER if up < 40 else GREEN)
+        text(surf, sc, "UPS BATTERY", 18, DIM, midleft=(24, 290))
+        text(surf, sc, f"{up:.0f}%  {uv:.2f}V", 24, ucol, digital=True, midleft=(230, 290))
+
     volt = t.volt
     auto = "ON" if cfg.POWER_LOSS_SHUTDOWN else "OFF"
     text(surf, sc, f"AUTO SHUTDOWN {auto}  (below {cfg.POWER_LOSS_VOLTS:.0f}V)", 16, DIM,
-         midleft=(24, 290))
+         midleft=(24, 330))
     if cfg.POWER_LOSS_SHUTDOWN and volt is None:
         text(surf, sc, "NO VOLTAGE READING - AUTO SHUTDOWN CAN'T WORK", 15, AMBER,
-             midleft=(24, 318))
+             midleft=(24, 352))
 
-    btns.append((button(surf, sc, 250, 360, 300, 64, "POWER OFF", fill=(170, 24, 24)),
+    btns.append((button(surf, sc, 250, 380, 300, 64, "POWER OFF", fill=(170, 24, 24)),
                  app.request_shutdown))
     return btns
 

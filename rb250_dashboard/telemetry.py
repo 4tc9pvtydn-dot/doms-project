@@ -17,9 +17,10 @@ class Telemetry:
         self.sensors = sensors
         self.speed = self.rpm = self.cht = self.fuel = self.volt = None
         self.gps = ("none", 0, 0)
+        self.ups = None  # (volts, pct)
         self.peak_rpm = 0.0
         self._prev = {}
-        self._next = {"ads": 0.0, "cht": 0.0}
+        self._next = {"ads": 0.0, "cht": 0.0, "ups": 0.0}
         self._last_save = time.monotonic()
         self._dirty = False
         self.odo, self.trip = self._load()
@@ -86,6 +87,8 @@ class Telemetry:
             self.volt = self._smooth("volt", s.read_voltage(), 0.2, 0.4)
         if self._due("cht", 0.25, now):
             self.cht = s.read_cht()
+        if self._due("ups", 2.0, now):
+            self.ups = s.read_ups()
 
         if self.speed is not None and self.speed >= cfg.MIN_MOVING_MPH:
             mi = self.speed * dt / 3600.0

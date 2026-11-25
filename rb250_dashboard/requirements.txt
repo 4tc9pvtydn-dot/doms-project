@@ -2,3 +2,4 @@ pyserial>=3.5
 adafruit-blinka
 adafruit-circuitpython-ads1x15
 adafruit-circuitpython-max31855
+smbus2

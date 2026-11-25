@@ -12,8 +12,8 @@ from theme import Scaler
 
 class FakeSensors:
     def __init__(self, speed=42.0, rpm=5200.0, cht=172.0, fuel=64.0, volt=13.8,
-                 gps=("fix", 8, 11)):
-        self.v = dict(speed=speed, rpm=rpm, cht=cht, fuel=fuel, volt=volt)
+                 gps=("fix", 8, 11), ups=(4.05, 87.0)):
+        self.v = dict(speed=speed, rpm=rpm, cht=cht, fuel=fuel, volt=volt, ups=ups)
         self.gps = gps
 
     def gps_state(self): return self.gps
@@ -22,15 +22,16 @@ class FakeSensors:
     def read_cht(self): return self.v["cht"]
     def read_fuel_pct(self): return self.v["fuel"]
     def read_voltage(self): return self.v["volt"]
+    def read_ups(self): return self.v["ups"]
 
     def status(self):
         return [("GPS", "8/11", True), ("ADC", "LIVE", True), ("CHT", "LIVE", True),
-                ("RPM", "LIVE", True)]
+                ("RPM", "LIVE", True), ("UPS", "LIVE", True)]
 
 
 def _settle(app, secs=1.0):
     for _ in range(int(secs / 0.05)):
-        app.telemetry._next = {"ads": 0.0, "cht": 0.0}
+        app.telemetry._next = {"ads": 0.0, "cht": 0.0, "ups": 0.0}
         app.telemetry.update(0.05)
 
 
@@ -105,6 +106,36 @@ def run():
     app.draw(screen, sc, 100.0 + m.GOODBYE_SECONDS + 0.1)
     m.subprocess.run = orig
     assert calls and "poweroff" in " ".join(calls[0]), "no poweroff issued"
+
+    # ignition back on during the goodbye screen -> cancel, keep riding
+    fs = FakeSensors()
+    app = _app(fs)
+    _settle(app)
+    fs.v["volt"] = 0.4
+    _settle(app, 1.0)
+    app.check_power(40.0)
+    app.check_power(40.0 + cfg.POWER_OFF_DELAY + 0.1)
+    assert app.powering_down
+    fs.v["volt"] = 13.6
+    _settle(app, 1.0)
+    app.check_power(45.0)
+    assert not app.powering_down, "ignition on during goodbye should cancel"
+
+    # manual POWER OFF must NOT be cancelled by good voltage
+    app.begin_poweroff()
+    app.check_power(50.0)
+    assert app.powering_down, "manual power off was cancelled"
+
+    # UPS low: only shuts down when NOT on bike power
+    fs = FakeSensors(ups=(3.45, 6.0))
+    app = _app(fs)
+    _settle(app, 2.5)
+    app.check_power(60.0)
+    assert not app.powering_down, "UPS low while ignition on must not shut down"
+    fs.v["volt"] = None
+    _settle(app, 1.0)
+    app.check_power(61.0)
+    assert app.powering_down and app.shutdown_reason == "UPS BATTERY LOW"
 
     # miles survive a restart
     app2 = _app(FakeSensors(speed=0.0))

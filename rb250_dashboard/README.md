@@ -2,7 +2,9 @@
 
 Live Lambretta dashboard: GPS speed, revs, head temp (CHT), fuel, battery
 voltage, trip + odometer miles, and auto shutdown when the ignition goes off
-(UPS HAT keeps the Pi powered while it shuts down).
+(UPS HAT keeps the Pi powered while it shuts down), and a wake wire on pin 5
+that starts it again at the next ignition-on (see WIRING.md). UPS battery %
+is on the Settings page.
 
 Every reading is live. If a sensor isn't connected it shows `--` and
 `NO SIGNAL` – never a made-up number.

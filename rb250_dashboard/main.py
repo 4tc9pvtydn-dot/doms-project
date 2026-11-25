@@ -41,6 +41,8 @@ class App:
         self.halted = False
         self._pd_since = None
         self._low_since = None
+        self._auto_pd = False
+        self.shutdown_reason = None
         self.countdown = None
         self.buttons = []
         self.boot_start = time.time()
@@ -61,7 +63,8 @@ class App:
     def request_shutdown(self):
         self.confirm = True
 
-    def begin_poweroff(self):
+    def begin_poweroff(self, auto=False):
+        self._auto_pd = auto
         self.confirm = False
         self.countdown = None
         self.powering_down = True
@@ -84,15 +87,28 @@ class App:
     def check_power(self, now):
         """Ignition off = switched-12V sensor drops below POWER_LOSS_VOLTS."""
         v = self.telemetry.volt
-        if not cfg.POWER_LOSS_SHUTDOWN or self.powering_down or self.halted:
+        if not cfg.POWER_LOSS_SHUTDOWN or self.halted:
             return
-        if v is not None and v < cfg.POWER_LOSS_VOLTS:
+        lost = v is not None and v < cfg.POWER_LOSS_VOLTS
+        if self.powering_down:
+            # ignition back on before the Pi actually powers off -> carry on riding
+            if self._auto_pd and v is not None and not lost:
+                self.powering_down = False
+                self._low_since = None
+            return
+        ups = self.telemetry.ups
+        if ups is not None and ups[1] < cfg.UPS_LOW_PCT and (v is None or lost):
+            self.shutdown_reason = "UPS BATTERY LOW"
+            self.begin_poweroff(auto=True)
+            return
+        if lost:
             if self._low_since is None:
                 self._low_since = now
             left = cfg.POWER_OFF_DELAY - (now - self._low_since)
             self.countdown = max(0.0, left)
             if left <= 0:
-                self.begin_poweroff()
+                self.shutdown_reason = "IGNITION OFF"
+                self.begin_poweroff(auto=True)
         else:
             self._low_since = None
             self.countdown = None
@@ -203,7 +219,7 @@ def main():
                     app.tap(pos)
                 press = None
 
-        if not app.powering_down and not app.halted:
+        if not app.halted:
             app.telemetry.update(dt)
             app.check_power(time.monotonic())
         app.draw(screen, sc, now)

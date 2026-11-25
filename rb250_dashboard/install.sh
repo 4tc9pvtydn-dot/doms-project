@@ -32,6 +32,8 @@ sudo raspi-config nonint do_spi 0 || true
 grep -q "^enable_uart=1" "$CFG" || echo "enable_uart=1" | sudo tee -a "$CFG" >/dev/null
 grep -q "^dtoverlay=disable-bt" "$CFG" || echo "dtoverlay=disable-bt" | sudo tee -a "$CFG" >/dev/null
 sudo systemctl disable hciuart 2>/dev/null || true
+# pin 5 is the wake-from-halt pin; a gpio-shutdown overlay would turn it into a power button
+sudo sed -i 's/^dtoverlay=gpio-shutdown/#dtoverlay=gpio-shutdown/' "$CFG"
 
 echo ">> Passwordless power off (for auto-shutdown + POWER OFF button)..."
 echo "$USER_NAME ALL=(ALL) NOPASSWD:/usr/bin/systemctl poweroff,/usr/sbin/poweroff,/sbin/poweroff" | \

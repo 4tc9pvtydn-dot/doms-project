@@ -60,6 +60,17 @@ POWER_LOSS_VOLTS = 6.0     # below this = ignition off
 POWER_OFF_DELAY = 3.0      # seconds below before shutting down (ignores dips)
 ALLOW_SHUTDOWN = True
 
+# ======================================================================
+#  UPS HAT (C) for Pi Zero - INA219 battery monitor on I2C 0x43
+#  Wake: after shutdown the UPS keeps the Pi powered (halted). A short
+#  low pulse on pin 5 at ignition-on starts it again (see WIRING.md).
+# ======================================================================
+UPS_ENABLED = True
+UPS_I2C_ADDR = 0x43
+UPS_EMPTY_V = 3.40        # battery volts = 0%
+UPS_FULL_V = 4.15         # battery volts = 100%
+UPS_LOW_PCT = 10          # on battery power and below this -> shut down safely
+
 # --- Miles ---
 ODO_FILE = "~/.rb250/odometer.json"   # kept outside the app folder: survives updates
 ODO_START = 0.0                # set your bike's current mileage before first run

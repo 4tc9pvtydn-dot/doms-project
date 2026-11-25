@@ -41,6 +41,8 @@ class Sensors:
         self._rpm_ref = None
         self.rpm_hz = 0.0
         self.rpm_rejects = 0
+        self._ups_bus = None
+        self._ups_retry = 0.0
         self.errors = {}
         self._open_gps()
 
@@ -237,6 +239,33 @@ class Sensors:
         self.rpm_hz = (len(ts) - 1) / (ts[-1] - ts[0])
         return self.rpm_hz * 60.0 / max(0.1, cfg.RPM_PULSES_PER_REV)
 
+    # --------------------------------------------------- UPS HAT (INA219)
+    def read_ups(self):
+        """(battery_volts, percent) from the UPS HAT, or None."""
+        if not cfg.UPS_ENABLED:
+            return None
+        if self._ups_bus is None:
+            if time.monotonic() < self._ups_retry:
+                return None
+            try:
+                from smbus2 import SMBus
+                self._ups_bus = SMBus(1)
+            except Exception as e:
+                self._ups_retry = time.monotonic() + RETRY_SECS
+                self._fail("UPS", e)
+                return None
+        try:
+            raw = self._ups_bus.read_word_data(cfg.UPS_I2C_ADDR, 0x02)  # bus voltage
+            raw = ((raw & 0xFF) << 8) | (raw >> 8)
+            volts = (raw >> 3) * 0.004
+            pct = (volts - cfg.UPS_EMPTY_V) / (cfg.UPS_FULL_V - cfg.UPS_EMPTY_V) * 100
+            self._ok("UPS")
+            return volts, max(0.0, min(100.0, pct))
+        except Exception as e:
+            self._ups_retry = time.monotonic() + RETRY_SECS
+            self._fail("UPS", e)
+            return None
+
     # --------------------------------------------------- status
     def status(self):
         st, used, heard = self.gps_state()
@@ -248,4 +277,5 @@ class Sensors:
              "CHT" not in self.errors and self._cht is not None),
             ("RPM", "OFF" if not cfg.RPM_ENABLED else ("NONE" if self._rpm_off else "LIVE"),
              cfg.RPM_ENABLED and not self._rpm_off),
+            ("UPS", "NONE" if "UPS" in self.errors else "LIVE", "UPS" not in self.errors),
         ]
