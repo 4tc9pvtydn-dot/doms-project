@@ -33,8 +33,8 @@ class App:
     def __init__(self, sensors):
         self.sensors = sensors
         self.telemetry = Telemetry(sensors)
-        self.page = 0  # 0 = ride, 1 = settings
-        self.pages = 2
+        self.page = 0  # 0 = ride, 1 = rides log, 2 = settings
+        self.pages = 3
         self.brightness = 100
         self.confirm = False
         self.powering_down = False
@@ -121,7 +121,7 @@ class App:
             elif self._no.collidepoint(pos):
                 self.confirm = False
             return
-        if self.page == 1:
+        if self.page == 2:
             for rect, cb in self.buttons:
                 if rect.collidepoint(pos):
                     cb()
@@ -149,6 +149,9 @@ class App:
         clock = time.strftime("%H:%M")
         if self.page == 0:
             ui.ride_screen(surf, sc, self.telemetry, clock)
+            self.buttons = []
+        elif self.page == 1:
+            ui.rides_screen(surf, sc, self.telemetry)
             self.buttons = []
         else:
             self.buttons = ui.settings_screen(surf, sc, self)

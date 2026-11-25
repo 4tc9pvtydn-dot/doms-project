@@ -5,8 +5,10 @@ Every value is None when its sensor isn't giving a reading.
 """
 import json
 import os
+import subprocess
 import time
 import config as cfg
+from rides import RideLog
 
 ODO_PATH = os.path.expanduser(cfg.ODO_FILE)
 SAVE_EVERY = 30.0
@@ -24,6 +26,8 @@ class Telemetry:
         self._last_save = time.monotonic()
         self._dirty = False
         self.odo, self.trip = self._load()
+        self.rides = RideLog()
+        self._next_clock = 0.0
 
     # ---------------- miles persistence
     def _load(self):
@@ -46,6 +50,25 @@ class Telemetry:
             self._dirty = False
         except Exception as e:
             print(f"[telemetry] could not save miles ({e})")
+        self.rides.save()
+
+    def _sync_clock(self, now):
+        """No Wi-Fi on the bike: set the Pi's clock from GPS time."""
+        if now < self._next_clock:
+            return
+        self._next_clock = now + 60
+        g = self.sensors.gps_time() if hasattr(self.sensors, "gps_time") else None
+        if g is None or abs(g - time.time()) < 30:
+            return
+        before = time.time()
+        try:
+            r = subprocess.run(["sudo", "-n", "date", "-u", "-s", f"@{int(g)}"],
+                               capture_output=True, timeout=5)
+            if r.returncode == 0:
+                self.rides.clock_fixed(time.time() - before)
+                print("[telemetry] clock set from GPS")
+        except Exception as e:
+            print(f"[telemetry] could not set clock ({e})")
 
     def reset_trip(self):
         self.trip = 0.0
@@ -95,6 +118,8 @@ class Telemetry:
             self.odo += mi
             self.trip += mi
             self._dirty = True
+        self.rides.update(self, dt)
+        self._sync_clock(now)
         if self._dirty and now - self._last_save > SAVE_EVERY:
             self._last_save = now
             self.save()

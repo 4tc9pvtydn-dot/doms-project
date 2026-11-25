@@ -23,6 +23,7 @@ class FakeSensors:
     def read_fuel_pct(self): return self.v["fuel"]
     def read_voltage(self): return self.v["volt"]
     def read_ups(self): return self.v["ups"]
+    def gps_time(self): return None
 
     def status(self):
         return [("GPS", "8/11", True), ("ADC", "LIVE", True), ("CHT", "LIVE", True),
@@ -44,6 +45,7 @@ def _app(sensors):
 def run():
     tmp = tempfile.mkdtemp()
     telemetry.ODO_PATH = os.path.join(tmp, "odo.json")
+    cfg.RIDES_FILE = os.path.join(tmp, "rides_app.json")
     pygame.init()
     for size in ((480, 320), (800, 480)):
         screen = pygame.display.set_mode(size)
@@ -53,7 +55,7 @@ def run():
         # all live
         app = _app(FakeSensors())
         _settle(app)
-        for page in (0, 1):
+        for page in (0, 1, 2):
             app.page = page
             app.draw(screen, sc, now)
         assert abs(app.telemetry.speed - 42) < 0.01
@@ -143,8 +145,32 @@ def run():
     app2.telemetry.reset_trip()
     assert app2.telemetry.trip == 0
 
+    # ride log: saved, survives restart, csv written, short rides ignored
+    import rides as rides_mod
+    rp = os.path.join(tmp, "rides.json")
+    log = rides_mod.RideLog(rp)
+
+    class T:
+        speed, rpm, cht = 48.0, 7200.0, 191.0
+    for _ in range(600):           # 60 s at 48 mph = 0.8 mi
+        log.update(T, 0.1)
+    T.speed, T.rpm, T.cht = 30.0, 9100.0, 205.0
+    log.update(T, 0.1)
+    log.save()
+    again = rides_mod.RideLog(rp).rides
+    assert len(again) == 1 and abs(again[0]["miles"] - 0.8) < 0.02, again
+    assert again[0]["top_mph"] == 48.0 and again[0]["peak_rpm"] == 9100 and again[0]["max_cht"] == 205
+    assert os.path.exists(os.path.join(tmp, "rides.csv"))
+    log.save()
+    assert len(rides_mod.RideLog(rp).rides) == 1, "same ride saved twice"
+    short = rides_mod.RideLog(os.path.join(tmp, "short.json"))
+    T.speed = 0.0
+    short.update(T, 5)
+    short.save()
+    assert not os.path.exists(os.path.join(tmp, "short.json")), "tiny ride should not be saved"
+
     # settings buttons + confirm
-    app2.page = 1
+    app2.page = 2
     app2.draw(screen, sc, time.time())
     for rect, cb in app2.buttons:
         cb()
@@ -162,13 +188,23 @@ def run():
 def preview(out="/tmp/rb250_previews"):
     os.makedirs(out, exist_ok=True)
     telemetry.ODO_PATH = os.path.join(out, "odo.json")
+    cfg.RIDES_FILE = os.path.join(out, "rides.json")
+    now = time.time()
+    demo = [(now - 86400 * d - 3600 * h, m, s_, top, rpm, c) for d, h, m, s_, top, rpm, c in
+            [(1, 2, 23.4, 3100, 58, 8240, 196), (2, 5, 8.2, 1260, 47, 7650, 184),
+             (4, 1, 41.7, 5400, 62, 8610, 214), (6, 3, 3.1, 610, 39, 6900, 168)]]
+    import json
+    with open(cfg.RIDES_FILE, "w") as fh:
+        json.dump([{"start": a, "miles": b, "secs": c, "top_mph": d, "peak_rpm": e,
+                    "max_cht": f} for a, b, c, d, e, f in demo], fh)
     pygame.init()
     shots = [
         ("ride_ok", FakeSensors(), 0),
         ("ride_warn", FakeSensors(speed=55, rpm=8100, cht=196, fuel=31, volt=14.2), 0),
         ("ride_hot", FakeSensors(speed=61, rpm=8700, cht=222, fuel=9, volt=14.1), 0),
         ("ride_nosensors", FakeSensors(None, None, None, None, None, ("search", 0, 3)), 0),
-        ("settings", FakeSensors(), 1),
+        ("rides", FakeSensors(), 1),
+        ("settings", FakeSensors(), 2),
     ]
     for size in ((480, 320), (800, 480)):
         screen = pygame.display.set_mode(size)

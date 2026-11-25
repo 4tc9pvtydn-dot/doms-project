@@ -27,9 +27,9 @@ UPS HAT keeps the Pi up; auto-shutdown when the switched-12V voltage sensor drop
 - Earlier (Pi 4 era): GPS baud 9600 fix, ADS1115 lib v3 fix, RPM rolling-window + glitch filter, fuel open-circuit handling, sensor status page.
 
 - 2026-06: Waveshare UPS HAT (C) support: INA219 @0x43 battery %/volts on Settings (smbus2), low-UPS shutdown only when off bike power, ignition-on during goodbye cancels auto power-off (manual POWER OFF not cancelled). Wake-from-halt via opto + 100uF cap pulse on pin 5 (GPIO3) documented in WIRING.md; installer comments out gpio-shutdown overlay. User chose: always shut down + wake wire.
+- 2026-06: Ride logging (`rides.py`): ride = ignition-on→shutdown; miles, duration, avg/top mph, peak rpm, max CHT; saved every 30s + at shutdown to ~/.rb250/rides.json + rides.csv; rides <0.1 mi dropped. New RIDES page (page 2 of 3, last 6 rides, CHT colour-coded). Pi clock set from GPS RMC time via `sudo -n date` (sudoers updated) so dates are right without Wi-Fi.
 
 ## Backlog
 - P0: user builds wake circuit + verifies wake from halt on bench
 - P0: user installs on Zero 2 W; verify all sensors live on bike (HT-lead RPM pickup, GPS lock with battery fitted)
 - P1: confirm HDMI screen choice (must not plug onto GPIO header — pins are in use); touch via USB or none
-- P2: ride CSV log

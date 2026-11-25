@@ -35,8 +35,8 @@ sudo systemctl disable hciuart 2>/dev/null || true
 # pin 5 is the wake-from-halt pin; a gpio-shutdown overlay would turn it into a power button
 sudo sed -i 's/^dtoverlay=gpio-shutdown/#dtoverlay=gpio-shutdown/' "$CFG"
 
-echo ">> Passwordless power off (for auto-shutdown + POWER OFF button)..."
-echo "$USER_NAME ALL=(ALL) NOPASSWD:/usr/bin/systemctl poweroff,/usr/sbin/poweroff,/sbin/poweroff" | \
+echo ">> Passwordless power off + clock-from-GPS..."
+echo "$USER_NAME ALL=(ALL) NOPASSWD:/usr/bin/systemctl poweroff,/usr/sbin/poweroff,/sbin/poweroff,/usr/bin/date" | \
   sudo tee /etc/sudoers.d/rb250-shutdown >/dev/null
 sudo chmod 440 /etc/sudoers.d/rb250-shutdown
 

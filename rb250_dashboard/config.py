@@ -73,6 +73,7 @@ UPS_LOW_PCT = 10          # on battery power and below this -> shut down safely
 
 # --- Miles ---
 ODO_FILE = "~/.rb250/odometer.json"   # kept outside the app folder: survives updates
+RIDES_FILE = "~/.rb250/rides.json"     # ride log (+ rides.csv for a computer)
 ODO_START = 0.0                # set your bike's current mileage before first run
 MIN_MOVING_MPH = 2.0           # ignore GPS drift when stopped
 

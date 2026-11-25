@@ -30,6 +30,7 @@ class Sensors:
         self._in_view = {}
         self._gps_last = 0.0
         self._gps_retry = 0.0
+        self._gps_utc = None  # (epoch, monotonic when received)
         self._ads = None
         self._ads_chans = {}
         self._ads_retry = 0.0
@@ -100,6 +101,12 @@ class Sensors:
                 self._gps_last = time.monotonic()
                 self._fix = p[2] == "A"
                 self._speed_knots = float(p[7]) if (self._fix and p[7]) else 0.0
+                if self._fix and len(p) > 9 and len(p[1]) >= 6 and len(p[9]) == 6:
+                    import calendar
+                    hh, mi, ss = int(p[1][0:2]), int(p[1][2:4]), int(p[1][4:6])
+                    dd, mo, yy = int(p[9][0:2]), int(p[9][2:4]), 2000 + int(p[9][4:6])
+                    epoch = calendar.timegm((yy, mo, dd, hh, mi, ss, 0, 0, 0))
+                    self._gps_utc = (epoch, time.monotonic())
             elif kind == "GGA" and len(p) > 7:
                 self._gps_last = time.monotonic()
                 self._sats = int(p[7]) if p[7] else 0
@@ -118,6 +125,14 @@ class Sensors:
             self._ok("GPS")
             return "fix", self._sats, heard
         return "search", self._sats, heard
+
+    def gps_time(self):
+        """Current UTC epoch from the GPS, or None without a fresh fix."""
+        if not self._gps_utc or not self._fix:
+            return None
+        epoch, at = self._gps_utc
+        age = time.monotonic() - at
+        return epoch + age if age < 5 else None
 
     def read_speed_mph(self):
         state, _, _ = self.gps_state()

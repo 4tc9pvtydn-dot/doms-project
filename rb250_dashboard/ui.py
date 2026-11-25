@@ -179,6 +179,39 @@ def settings_screen(surf, sc, app):
     return btns
 
 
+def rides_screen(surf, sc, t):
+    """Ride history, newest first (the ride in progress is marked NOW)."""
+    from rides import avg_mph
+    surf.fill(BG)
+    text(surf, sc, "RIDES", 24, AMBER, digital=True, midleft=(24, 30))
+    hist = t.rides.history()
+    total = sum(r["miles"] for r in hist)
+    text(surf, sc, f"{len(hist)} rides  {total:,.0f} mi", 18, DIM, midright=(776, 30))
+    cols = [(24, "DATE"), (190, "MILES"), (290, "TIME"), (390, "AVG"), (480, "TOP"),
+            (570, "PEAK RPM"), (700, "MAX °C")]
+    for x, h in cols:
+        text(surf, sc, h, 16, DIM, midleft=(x, 78))
+    pygame.draw.line(surf, EDGE, sc.p(24, 94), sc.p(776, 94), 1)
+    if not hist:
+        text(surf, sc, "No rides yet - rides over 0.1 mile are saved", 20, DIM,
+             center=(400, 250))
+    cur = t.rides.cur["start"] if t.rides.cur else None
+    for i, r in enumerate(hist[:6]):
+        y = 124 + i * 52
+        live = r["start"] == cur
+        when = "NOW" if live else time.strftime("%d %b %H:%M", time.localtime(r["start"]))
+        mins = int(r["secs"] // 60)
+        cht = r.get("max_cht")
+        vals = [when, f"{r['miles']:.1f}", f"{mins // 60}:{mins % 60:02d}", f"{avg_mph(r):.0f}",
+                f"{r['top_mph']:.0f}", f"{r['peak_rpm']:.0f}", NO_SIGNAL if cht is None else f"{cht:.0f}"]
+        for (x, _), v in zip(cols, vals):
+            col = AMBER if live and x == 24 else WHITE
+            if x == 700 and cht is not None:
+                col = cht_color(cht)
+            text(surf, sc, v, 22, col, midleft=(x, y))
+        pygame.draw.line(surf, (28, 29, 34), sc.p(24, y + 26), sc.p(776, y + 26), 1)
+
+
 def page_dots(surf, sc, count, index):
     for i in range(count):
         cx = 400 + (i - (count - 1) / 2) * 22
