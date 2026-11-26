@@ -27,14 +27,15 @@ from telemetry import Telemetry  # noqa: E402
 BOOT_SECONDS = 2.6
 GOODBYE_SECONDS = 3.0
 SWIPE_PX = 0.08  # fraction of screen width
+RIDE, CRUISE, RIDES, SETTINGS = 0, 1, 2, 3  # page order (NEXT button)
 
 
 class App:
     def __init__(self, sensors):
         self.sensors = sensors
         self.telemetry = Telemetry(sensors)
-        self.page = 0  # 0 = ride, 1 = rides log, 2 = settings
-        self.pages = 3
+        self.page = RIDE
+        self.pages = 4
         self.brightness = 100
         self.confirm = False
         self.powering_down = False
@@ -126,7 +127,7 @@ class App:
             elif self._no.collidepoint(pos):
                 self.confirm = False
             return
-        if self.page == 2:
+        if self.page == SETTINGS:
             for rect, cb in self.buttons:
                 if rect.collidepoint(pos):
                     cb()
@@ -160,13 +161,13 @@ class App:
             self.page = (self.page + 1) % self.pages
             self.sel = 0
             self.ride_sel = 0
-        elif self.page == 1:
+        elif self.page == RIDES:
             n = len(self.telemetry.rides.history())
             if ev == "select" and n:
                 self.ride_sel = (self.ride_sel + 1) % n
             elif ev == "hold" and n:
                 self.detail = True
-        elif self.page == 2 and self.buttons:
+        elif self.page == SETTINGS and self.buttons:
             if ev == "select":
                 self.sel = (self.sel + 1) % len(self.buttons)
             elif ev == "hold":
@@ -188,10 +189,13 @@ class App:
                 self.do_poweroff()
             return
         clock = time.strftime("%H:%M")
-        if self.page == 0:
+        if self.page == RIDE:
             ui.ride_screen(surf, sc, self.telemetry, clock)
             self.buttons = []
-        elif self.page == 1:
+        elif self.page == CRUISE:
+            ui.cruise_screen(surf, sc, self.telemetry, clock)
+            self.buttons = []
+        elif self.page == RIDES:
             if self.detail:
                 ui.ride_detail_screen(surf, sc, self.telemetry, self.ride_sel)
             else:

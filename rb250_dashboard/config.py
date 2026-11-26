@@ -7,6 +7,8 @@ Edit values here, then:  sudo systemctl restart rb250-dashboard
 REDLINE = 8500
 SHIFT_RPM = 7800
 RPM_SCALE_MAX = 10000
+DIAL_MAX_MPH = 80        # top of the cruise-page speed dial
+CHT_BAR_MAX = 250        # top of the cruise-page temp bar (degC)
 
 # --- Colour limits (traffic lights) ---
 CHT_AMBER = 180        # degC: green below, amber from here

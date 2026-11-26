@@ -38,7 +38,7 @@ Two momentary push-buttons (normally open). No resistors — the Pi's built-in p
 | **NEXT** | pin **37** | pin **39** (GND, right next to it) |
 | **SELECT** | pin **36** | pin **34** (GND) |
 
-- NEXT: Ride → Rides → Settings → Ride
+- NEXT: Ride → Cruise → Rides → Settings → Ride
 - SELECT on Rides: scroll to older rides (wraps back to the newest)
 - SELECT on Settings: move the amber highlight · **hold 1s** = press it
 - POWER OFF asks to confirm, starting on CANCEL — SELECT switches, hold to confirm

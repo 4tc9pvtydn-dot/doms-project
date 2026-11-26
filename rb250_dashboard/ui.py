@@ -1,4 +1,5 @@
-"""Screens: ride, settings, boot, power-down overlays."""
+"""Screens: ride, cruise, rides, settings, boot, power-down overlays."""
+import math
 import time
 import pygame
 import config as cfg
@@ -119,6 +120,93 @@ def ride_screen(surf, sc, t, clock_str):
         warn_banner(surf, sc, "ENGINE HOT - EASE OFF")
     elif low:
         warn_banner(surf, sc, "FUEL LOW")
+
+
+def vbar(surf, sc, x, label, value, unit, frac, color, marks=(), flash=False):
+    """Tall, wide vertical bar (fills from the bottom) with value underneath."""
+    top, bottom, w = 64, 372, 104
+    text(surf, sc, label, 20, DIM, midtop=(x + w / 2, 30))
+    outer = sc.r(x, top, w, bottom - top)
+    pygame.draw.rect(surf, PANEL, outer, border_radius=sc.n(12))
+    pygame.draw.rect(surf, RED if flash and blink(2) else EDGE, outer, sc.n(2),
+                     border_radius=sc.n(12))
+    n, gap = 12, 6
+    seg_h = (bottom - top - 16 - gap * (n - 1)) / n
+    lit = 0 if frac is None else math.ceil(max(0.0, min(1.0, frac)) * n - 0.01)
+    for i in range(n):
+        y = bottom - 8 - (i + 1) * seg_h - i * gap
+        col = color if i < lit and not (flash and not blink(2)) else SEG_OFF
+        pygame.draw.rect(surf, col, sc.r(x + 12, y, w - 24, seg_h), border_radius=sc.n(4))
+    for f, mcol in marks:  # limit ticks, e.g. amber / red temp lines
+        y = bottom - 8 - f * (bottom - top - 16)
+        pygame.draw.line(surf, mcol, sc.p(x - 6, y), sc.p(x + 4, y), sc.n(3))
+    text(surf, sc, value, 38, color if value != NO_SIGNAL else DIM, digital=True,
+         midtop=(x + w / 2, 382))
+    text(surf, sc, unit if value != NO_SIGNAL else "NO SIGNAL", 17,
+         DIM if value != NO_SIGNAL else AMBER, midtop=(x + w / 2, 424))
+
+
+def speed_dial(surf, sc, mph):
+    """Large analog speedo. 0..DIAL_MAX over a 240 degree sweep."""
+    cx, cy = sc.p(400, 214)
+    rad = sc.n(196)
+    top = cfg.DIAL_MAX_MPH
+    a0, sweep = math.radians(210), math.radians(240)
+
+    def at(v, r):
+        a = a0 - sweep * max(0.0, min(1.0, v / top))
+        return (cx + r * math.cos(a), cy - r * math.sin(a))
+
+    pygame.draw.circle(surf, PANEL, (cx, cy), rad)
+    pygame.draw.circle(surf, EDGE, (cx, cy), rad, sc.n(3))
+    # lit arc up to the current speed
+    if mph:
+        steps = max(2, int(60 * min(1.0, mph / top)))
+        pts = [at(mph * i / steps, rad - sc.n(14)) for i in range(steps + 1)]
+        pygame.draw.lines(surf, AMBER, False, pts, sc.n(8))
+    for v in range(0, top + 1, 5):
+        major = v % 10 == 0
+        pygame.draw.line(surf, WHITE if major else FAINT, at(v, rad - sc.n(26 if major else 22)),
+                         at(v, rad - sc.n(40 if major else 32)), sc.n(4 if major else 2))
+        if major:
+            lbl = sc.font(24, True).render(str(v), True, WHITE)
+            surf.blit(lbl, lbl.get_rect(center=at(v, rad - sc.n(72))))
+    # needle
+    if mph is not None:
+        a = a0 - sweep * max(0.0, min(1.0, mph / top))
+        tip = (cx + (rad - sc.n(30)) * math.cos(a), cy - (rad - sc.n(30)) * math.sin(a))
+        side = sc.n(7)
+        base1 = (cx + side * math.cos(a + math.pi / 2), cy - side * math.sin(a + math.pi / 2))
+        base2 = (cx + side * math.cos(a - math.pi / 2), cy - side * math.sin(a - math.pi / 2))
+        pygame.draw.polygon(surf, RED, [tip, base1, base2])
+    pygame.draw.circle(surf, (40, 41, 46), (cx, cy), sc.n(20))
+    pygame.draw.circle(surf, AMBER, (cx, cy), sc.n(8))
+    # small digital readout + unit inside the dial
+    val = NO_SIGNAL if mph is None else f"{round(mph)}"
+    img = sc.font(48, True).render(val, True, WHITE)
+    surf.blit(img, img.get_rect(center=(cx, cy + sc.n(92))))
+    unit = sc.font(18).render("MPH" if mph is not None else "NO GPS", True,
+                              DIM if mph is not None else AMBER)
+    surf.blit(unit, unit.get_rect(center=(cx, cy + sc.n(132))))
+
+
+def cruise_screen(surf, sc, t, clock_str):
+    """Long-ride page: big speedo, fuel left, head temp right, time + miles."""
+    surf.fill(BG)
+    low = t.fuel is not None and t.fuel < cfg.FUEL_RED
+    vbar(surf, sc, 24, "FUEL", fmt(t.fuel, ".0f"), "%",
+         None if t.fuel is None else t.fuel / 100.0, fuel_color(t.fuel), flash=low)
+    hot = t.cht is not None and t.cht > cfg.CHT_RED
+    m = cfg.CHT_BAR_MAX
+    vbar(surf, sc, 672, "HEAD", fmt(t.cht, ".0f"), "°C",
+         None if t.cht is None else t.cht / m, cht_color(t.cht),
+         marks=((cfg.CHT_AMBER / m, AMBER), (cfg.CHT_RED / m, RED)), flash=hot)
+    speed_dial(surf, sc, t.speed)
+    text(surf, sc, clock_str, 44, WHITE, digital=True, midbottom=(400, 452))
+    text(surf, sc, "TRIP", 18, DIM, bottomleft=(150, 448))
+    text(surf, sc, f"{t.trip:.1f}", 24, WHITE, digital=True, bottomleft=(198, 452))
+    text(surf, sc, "ODO", 18, DIM, bottomleft=(500, 448))
+    text(surf, sc, f"{t.odo:,.0f}", 24, WHITE, digital=True, bottomleft=(542, 452))
 
 
 def warn_banner(surf, sc, msg):

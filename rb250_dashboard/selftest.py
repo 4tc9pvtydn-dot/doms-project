@@ -55,7 +55,7 @@ def run():
         # all live
         app = _app(FakeSensors())
         _settle(app)
-        for page in (0, 1, 2):
+        for page in range(4):
             app.page = page
             app.draw(screen, sc, now)
         assert abs(app.telemetry.speed - 42) < 0.01
@@ -174,10 +174,12 @@ def run():
     app3.telemetry.rides.rides = [{"start": i, "miles": 1.0, "secs": 60, "top_mph": 30,
                                    "peak_rpm": 5000, "max_cht": 150} for i in range(14)]
     seq = []
-    for _ in range(3):
+    for _ in range(4):
         app3.button("next")
         seq.append(app3.page)
-    assert seq == [1, 2, 0], seq
+    assert seq == [1, 2, 3, 0], seq
+    app3.button("next")                      # cruise page
+    app3.draw(screen, sc, time.time())
     app3.button("next")                      # rides page
     for _ in range(7):
         app3.button("select")
@@ -190,7 +192,7 @@ def run():
     for _ in range(6):
         app3.button("select")
     assert app3.ride_sel == 0, "should wrap to newest"
-    app3.button("hold"); app3.button("next"); assert not app3.detail and app3.page == 1
+    app3.button("hold"); app3.button("next"); assert not app3.detail and app3.page == m.RIDES
     app3.button("next")                      # settings
     app3.draw(screen, sc, time.time())
     n = len(app3.buttons)
@@ -205,12 +207,12 @@ def run():
     app3.button("hold"); app3.button("select"); app3.button("hold")
     assert app3.powering_down, "POWER OFF via buttons failed"
     app3.sel = 1                              # brightness -
-    app4 = _app(FakeSensors()); app4.page = 2
+    app4 = _app(FakeSensors()); app4.page = m.SETTINGS
     app4.draw(screen, sc, time.time()); app4.button("select"); app4.button("hold")
     assert app4.brightness == 80, app4.brightness
 
     # settings buttons + confirm
-    app2.page = 2
+    app2.page = m.SETTINGS
     app2.draw(screen, sc, time.time())
     for rect, cb in app2.buttons:
         cb()
@@ -243,9 +245,12 @@ def preview(out="/tmp/rb250_previews"):
         ("ride_warn", FakeSensors(speed=55, rpm=8100, cht=196, fuel=31, volt=14.2), 0),
         ("ride_hot", FakeSensors(speed=61, rpm=8700, cht=222, fuel=9, volt=14.1), 0),
         ("ride_nosensors", FakeSensors(None, None, None, None, None, ("search", 0, 3)), 0),
-        ("rides", FakeSensors(), 1),
-        ("ride_detail", FakeSensors(), 1),
-        ("settings", FakeSensors(), 2),
+        ("cruise", FakeSensors(speed=47), 1),
+        ("cruise_warn", FakeSensors(speed=63, cht=198, fuel=12), 1),
+        ("cruise_nogps", FakeSensors(None, None, None, None, None, ("search", 0, 3)), 1),
+        ("rides", FakeSensors(), 2),
+        ("ride_detail", FakeSensors(), 2),
+        ("settings", FakeSensors(), 3),
     ]
     for size in ((640, 480), (480, 320), (800, 480)):
         screen = pygame.display.set_mode(size)
@@ -256,7 +261,7 @@ def preview(out="/tmp/rb250_previews"):
             _settle(app)
             app.telemetry.peak_rpm = max(app.telemetry.peak_rpm, 6900)
             app.page = page
-            if name.startswith("ride") and page == 1:
+            if name.startswith("ride") and page == 2:
                 app.ride_sel = 2
             app.detail = name == "ride_detail"
             app.draw(screen, sc, time.time())
