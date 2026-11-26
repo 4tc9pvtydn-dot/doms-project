@@ -24,7 +24,12 @@ WIN_TOP = 18.0      # top of the window on the 119 mm line
 # two push-button holes below the screen (12 mm panel-mount buttons)
 BTN_D = 12.0
 BTN_Y = 92.0        # centre depth from top (window ends at 74, gap starts at 111)
-BTN_X = 25.0        # +/- from centre: SELECT left, NEXT right
+BTN_X = 30.0        # +/- from centre: SELECT left, NEXT right
+# raised lettering
+TEXT_RAISE = 0.8    # mm above the plate
+LABEL_H = 4.5       # NEXT / SELECT letter height, under each hole
+BADGE_H = 6.5       # RB250 badge letter height, between the buttons
+FONTS = os.path.join(HERE, "..", "assets", "fonts")
 
 
 def catmull(pts, n=24):
@@ -66,17 +71,57 @@ def buttons():
     return [Point(x, -BTN_Y).buffer(BTN_D / 2, resolution=32) for x in (-BTN_X, BTN_X)]
 
 
+def text_shape(msg, height, font, cx, cy):
+    """Text as a shapely shape, centred at (cx, cy) in plate coords (cy negative = down)."""
+    from matplotlib.textpath import TextPath
+    from matplotlib.font_manager import FontProperties
+    from shapely.affinity import translate
+    from shapely.geometry import MultiPolygon
+    tp = TextPath((0, 0), msg, size=10, prop=FontProperties(fname=os.path.join(FONTS, font)))
+    shape = None
+    for ring in tp.to_polygons():
+        if len(ring) < 3:
+            continue
+        p = Polygon(ring).buffer(0)
+        shape = p if shape is None else shape.symmetric_difference(p)  # holes in R, B, 0
+    minx, miny, maxx, maxy = shape.bounds
+    k = height / (maxy - miny)
+    shape = scale(shape, k, k, origin=(0, 0))
+    minx, miny, maxx, maxy = shape.bounds
+    shape = translate(shape, cx - (minx + maxx) / 2, cy - (miny + maxy) / 2)
+    return shape if isinstance(shape, (Polygon, MultiPolygon)) else shape.buffer(0)
+
+
+def lettering():
+    label_y = -(BTN_Y + BTN_D / 2 + 2.5 + LABEL_H / 2)
+    return [
+        text_shape("SELECT", LABEL_H, "ChakraPetch-Bold.ttf", -BTN_X, label_y),
+        text_shape("NEXT", LABEL_H, "ChakraPetch-Bold.ttf", BTN_X, label_y),
+        text_shape("RB250", BADGE_H, "ChakraPetch-Bold.ttf", 0, -BTN_Y),
+    ]
+
+
 def build():
     plate = outline().difference(window())
     for b in buttons():
         plate = plate.difference(b)
     mesh = trimesh.creation.extrude_polygon(plate, THICK)
     assert mesh.is_watertight
+    parts = [mesh]
+    for t in lettering():
+        assert plate.contains(t), "lettering runs off the panel"
+        polys = list(t.geoms) if hasattr(t, "geoms") else [t]
+        for p in polys:
+            m = trimesh.creation.extrude_polygon(p, TEXT_RAISE + 0.1)
+            assert m.is_watertight
+            m.apply_translation((0, 0, THICK - 0.1))  # tiny overlap so slicers merge it
+            parts.append(m)
+    mesh = trimesh.util.concatenate(parts)
     stl = os.path.join(HERE, "rb250_dash_panel.stl")
     mesh.export(stl)
     b = plate.bounds
     print(f"STL: {stl}")
-    print(f"size {b[2]-b[0]:.1f} x {b[3]-b[1]:.1f} x {THICK} mm, volume {mesh.volume/1000:.1f} cm3")
+    print(f"size {b[2]-b[0]:.1f} x {b[3]-b[1]:.1f} x {THICK} mm (+{TEXT_RAISE} lettering)")
     return plate
 
 
@@ -101,12 +146,16 @@ def drawings(plate):
             ax.text(0, -(WIN_TOP + WIN_H / 2), f"SCREEN\n{WIN_W:.0f} x {WIN_H:.0f}",
                     ha="center", va="center", fontsize=7)
             ax.text(0, -(GAP_TOP + 10), f"gap {GAP_W:.0f}", ha="center", fontsize=6)
-            for x, name in ((-BTN_X, "SELECT"), (BTN_X, "NEXT")):
-                ax.text(x, -(BTN_Y + BTN_D / 2 + 4), f"{name}\n{BTN_D:.0f} mm", ha="center",
-                        va="top", fontsize=6)
-            ax.text(0, -BTN_Y, f"{2 * BTN_X:.0f} apart", ha="center", va="center", fontsize=5)
+            ax.text(-BTN_X - BTN_D, -BTN_Y, f"{BTN_D:.0f} mm", ha="right", va="center", fontsize=5)
             ax.text(-75, -(HEIGHT + 6), f"total {HEIGHT:.0f} high, 150 wide at the legs, "
                     f"{THICK:.0f} mm thick", fontsize=6)
+        for t in lettering():
+            for p in (list(t.geoms) if hasattr(t, "geoms") else [t]):
+                lx, ly = p.exterior.xy
+                ax.fill(lx, ly, color="#3b4148")
+                for hole in p.interiors:
+                    hx, hy = hole.xy
+                    ax.fill(hx, hy, color="#9aa3ad")
         ax.set_aspect("equal")
         ax.axis("off")
 
