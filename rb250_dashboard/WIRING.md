@@ -30,6 +30,24 @@ Pin numbers are the **physical** header pins (pin 1 = 3.3V, corner nearest the S
 | | S | ADS1115 A2 |
 | | − (pin side) | GND |
 
+## Handlebar buttons (screen has no touch)
+Two momentary push-buttons (normally open). No resistors — the Pi's built-in pull-ups are used.
+
+| Button | One leg | Other leg |
+|---|---|---|
+| **NEXT** | pin **37** | pin **39** (GND, right next to it) |
+| **SELECT** | pin **36** | pin **34** (GND) |
+
+- NEXT: Ride → Rides → Settings → Ride
+- SELECT on Rides: scroll to older rides (wraps back to the newest)
+- SELECT on Settings: move the amber highlight · **hold 1s** = press it
+- POWER OFF asks to confirm, starting on CANCEL — SELECT switches, hold to confirm
+
+## Screen — Newhaven NHD-3.5-HDMI-HR-RSXP (640×480, no touch)
+- HDMI → the Zero's **mini-HDMI** port (mini-HDMI to HDMI cable/adapter).
+- 5V power to the screen from your 5V supply (not a Pi GPIO pin).
+- No config needed — the screen tells the Pi its resolution. If the picture is wrong: `bash set-screen.sh 640x480`.
+
 ## Fuel sender (2-wire)
 ```
 3.3V ──[100 Ω]──┬── sender signal wire

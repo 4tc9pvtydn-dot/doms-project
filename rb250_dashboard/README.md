@@ -23,11 +23,15 @@ rm -f ~/.rb250/odometer.json && sudo systemctl restart rb250-dashboard
 ## Screens
 - **Ride**: RPM bar 1–10k + digital RPM + peak marker, big MPH, head temp,
   fuel, battery, trip + odometer. GPS status top centre.
-- **Rides** (swipe left): every ride (ignition on → off) with date, miles,
+- **Rides** (NEXT button): every ride (ignition on → off) with date, miles,
   time, average + top speed, peak revs and hottest head temp. Rides under
   0.1 mile aren't kept. The clock and dates are set from GPS, so no Wi-Fi needed.
-- **Settings** (swipe left again): reset trip, brightness, sensor status,
+- **Settings** (NEXT again): reset trip, brightness, sensor status,
   auto-shutdown status, POWER OFF.
+
+## Buttons
+NEXT (pin 37) changes page. SELECT (pin 36) scrolls rides / moves the
+highlight on Settings; hold SELECT 1s to press. See WIRING.md.
 
 ## Colours
 | | Green | Amber | Red |
@@ -50,4 +54,4 @@ Change limits in `config.py`, then `sudo systemctl restart rb250-dashboard`.
 | RB250 boot logo (optional) | `bash setup-boot-splash.sh` |
 
 ## Laptop test
-`python main.py --size 480x320` · `python main.py --selftest` · `python main.py --preview`
+`python main.py` (N = NEXT, Space = SELECT, Enter = hold) · `python main.py --selftest` · `python main.py --preview`

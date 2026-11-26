@@ -77,7 +77,13 @@ RIDES_FILE = "~/.rb250/rides.json"     # ride log (+ rides.csv for a computer)
 ODO_START = 0.0                # set your bike's current mileage before first run
 MIN_MOVING_MPH = 2.0           # ignore GPS drift when stopped
 
-# --- Screen: uses whatever the screen reports (480x320, 800x480 ...) ---
+# --- Buttons (screen has no touch) - each button: GPIO pin + GND ---
+BUTTONS_ENABLED = True
+BTN_NEXT_GPIO = 26        # pin 37 (GND pin 39 next to it)
+BTN_SELECT_GPIO = 16      # pin 36 (GND pin 34 next to it)
+BTN_HOLD_SECS = 1.0       # hold SELECT this long = press the highlighted item
+
+# --- Screen: Newhaven NHD-3.5-HDMI-HR-RSXP 640x480 (layout scales to any size) ---
 DESIGN_W = 800
 DESIGN_H = 480
 FPS = 30

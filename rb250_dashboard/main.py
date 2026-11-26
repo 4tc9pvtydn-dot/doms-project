@@ -3,7 +3,7 @@
 RB250 - Lambretta digital dashboard (Pygame, Pi Zero 2 W, HDMI screen)
 
 Pi (service):   python main.py --fullscreen
-Laptop window:  python main.py --size 480x320
+Laptop window:  python main.py   (N/→ = NEXT, Space/↓ = SELECT, Enter = hold)
 Headless test:  python main.py --selftest
 Screenshots:    python main.py --preview
 """
@@ -45,6 +45,9 @@ class App:
         self.shutdown_reason = None
         self.countdown = None
         self.buttons = []
+        self.sel = 0          # highlighted settings item
+        self.confirm_sel = 1  # 0 = POWER OFF, 1 = CANCEL (safe default)
+        self.scroll = 0       # rides list offset
         self.boot_start = time.time()
 
     # ---- brightness: real backlight if the screen has one, else dim overlay
@@ -62,6 +65,7 @@ class App:
     # ---- shutdown
     def request_shutdown(self):
         self.confirm = True
+        self.confirm_sel = 1
 
     def begin_poweroff(self, auto=False):
         self._auto_pd = auto
@@ -131,6 +135,32 @@ class App:
         if not self.confirm:
             self.page = max(0, min(self.pages - 1, self.page + direction))
 
+    def button(self, ev):
+        """Handlebar buttons: 'next' page, 'select' = scroll/move, 'hold' = press."""
+        if self.powering_down or self.halted:
+            return
+        if self.confirm:
+            if ev == "select" or ev == "next":
+                self.confirm_sel = 1 - self.confirm_sel
+            elif ev == "hold":
+                if self.confirm_sel == 0:
+                    self.begin_poweroff()
+                else:
+                    self.confirm = False
+            return
+        if ev == "next":
+            self.page = (self.page + 1) % self.pages
+            self.sel = 0
+            self.scroll = 0
+        elif self.page == 1 and ev == "select":
+            n = len(self.telemetry.rides.history())
+            self.scroll = self.scroll + ui.RIDES_PER_PAGE if self.scroll + ui.RIDES_PER_PAGE < n else 0
+        elif self.page == 2 and self.buttons:
+            if ev == "select":
+                self.sel = (self.sel + 1) % len(self.buttons)
+            elif ev == "hold":
+                self.buttons[self.sel % len(self.buttons)][1]()
+
     # ---- frame
     def draw(self, surf, sc, now):
         if now - self.boot_start < BOOT_SECONDS:
@@ -151,15 +181,18 @@ class App:
             ui.ride_screen(surf, sc, self.telemetry, clock)
             self.buttons = []
         elif self.page == 1:
-            ui.rides_screen(surf, sc, self.telemetry)
+            ui.rides_screen(surf, sc, self.telemetry, self.scroll)
             self.buttons = []
         else:
             self.buttons = ui.settings_screen(surf, sc, self)
+            if self.buttons:
+                ui.highlight(surf, sc, self.buttons[self.sel % len(self.buttons)][0])
         ui.page_dots(surf, sc, self.pages, self.page)
         if self.countdown is not None:
             ui.countdown_overlay(surf, sc, self.countdown)
         if self.confirm:
             self._yes, self._no = ui.confirm_overlay(surf, sc)
+            ui.highlight(surf, sc, self._yes if self.confirm_sel == 0 else self._no)
         if self.brightness < 100:
             dim = pygame.Surface((sc.w, sc.h))
             dim.set_alpha(int((100 - self.brightness) / 100 * 190))
@@ -169,7 +202,7 @@ class App:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fullscreen", action="store_true")
-    ap.add_argument("--size", default="480x320")
+    ap.add_argument("--size", default="640x480")
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--preview", action="store_true")
     args = ap.parse_args()
@@ -193,7 +226,9 @@ def main():
     print(f"[main] screen {sc.w}x{sc.h}")
 
     from sensors import Sensors
+    from buttons import Buttons
     app = App(Sensors())
+    btns = Buttons()
     clock = pygame.time.Clock()
     press = None
 
@@ -207,10 +242,12 @@ def main():
             elif e.type == pygame.KEYDOWN:
                 if e.key in (pygame.K_ESCAPE, pygame.K_q):
                     running = False
-                elif e.key == pygame.K_RIGHT:
-                    app.swipe(1)
-                elif e.key == pygame.K_LEFT:
-                    app.swipe(-1)
+                elif e.key in (pygame.K_RIGHT, pygame.K_n):
+                    app.button("next")
+                elif e.key in (pygame.K_DOWN, pygame.K_SPACE):
+                    app.button("select")
+                elif e.key == pygame.K_RETURN:
+                    app.button("hold")
             elif e.type in (pygame.MOUSEBUTTONDOWN, pygame.FINGERDOWN):
                 press = _pos(e, sc)
             elif e.type in (pygame.MOUSEBUTTONUP, pygame.FINGERUP) and press:
@@ -222,6 +259,8 @@ def main():
                     app.tap(pos)
                 press = None
 
+        for ev in btns.poll():
+            app.button(ev)
         if not app.halted:
             app.telemetry.update(dt)
             app.check_power(time.monotonic())

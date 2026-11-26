@@ -26,28 +26,29 @@ def blink(hz=2.0):
 
 
 class Scaler:
-    """Layout is designed on an 800x480 grid and scaled to the real screen
-    (480x320, 800x480, ...) keeping proportions, centred."""
+    """Layout is designed on an 800x480 grid and stretched to the real screen
+    (640x480, 480x320, 800x480 ...)."""
 
     def __init__(self, w, h):
         self.w, self.h = w, h
-        self.s = min(w / cfg.DESIGN_W, h / cfg.DESIGN_H)
-        self.ox = int((w - cfg.DESIGN_W * self.s) / 2)
-        self.oy = int((h - cfg.DESIGN_H * self.s) / 2)
+        # stretch to fill any screen shape; text + strokes use the smaller scale
+        self.sx = w / cfg.DESIGN_W
+        self.sy = h / cfg.DESIGN_H
+        self.s = min(self.sx, self.sy)
         self._fonts = {}
 
     def p(self, x, y):
-        return (int(self.ox + x * self.s), int(self.oy + y * self.s))
+        return (int(x * self.sx), int(y * self.sy))
 
     def r(self, x, y, w, h):
-        return pygame.Rect(self.ox + int(x * self.s), self.oy + int(y * self.s),
-                           max(1, int(w * self.s)), max(1, int(h * self.s)))
+        return pygame.Rect(int(x * self.sx), int(y * self.sy),
+                           max(1, int(w * self.sx)), max(1, int(h * self.sy)))
 
     def n(self, v):
         return max(1, int(v * self.s))
 
     def to_design(self, pos):
-        return ((pos[0] - self.ox) / self.s, (pos[1] - self.oy) / self.s)
+        return (pos[0] / self.sx, pos[1] / self.sy)
 
     def font(self, size, digital=False):
         px = max(10, int(size * self.s))

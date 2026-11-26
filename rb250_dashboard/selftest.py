@@ -47,7 +47,7 @@ def run():
     telemetry.ODO_PATH = os.path.join(tmp, "odo.json")
     cfg.RIDES_FILE = os.path.join(tmp, "rides_app.json")
     pygame.init()
-    for size in ((480, 320), (800, 480)):
+    for size in ((640, 480), (480, 320), (800, 480)):
         screen = pygame.display.set_mode(size)
         sc = Scaler(*size)
         now = time.time()
@@ -169,6 +169,38 @@ def run():
     short.save()
     assert not os.path.exists(os.path.join(tmp, "short.json")), "tiny ride should not be saved"
 
+    # handlebar buttons: NEXT cycles pages, SELECT scrolls/moves, HOLD presses
+    app3 = _app(FakeSensors())
+    app3.telemetry.rides.rides = [{"start": i, "miles": 1.0, "secs": 60, "top_mph": 30,
+                                   "peak_rpm": 5000, "max_cht": 150} for i in range(14)]
+    seq = []
+    for _ in range(3):
+        app3.button("next")
+        seq.append(app3.page)
+    assert seq == [1, 2, 0], seq
+    app3.button("next")                      # rides page
+    app3.button("select"); assert app3.scroll == 6
+    app3.button("select"); assert app3.scroll == 12
+    app3.button("select"); assert app3.scroll == 0, "should wrap to top"
+    app3.draw(screen, sc, time.time())
+    app3.button("next")                      # settings
+    app3.draw(screen, sc, time.time())
+    n = len(app3.buttons)
+    for _ in range(n - 1):
+        app3.button("select")
+    assert app3.buttons[app3.sel][1] == app3.request_shutdown, "last item should be POWER OFF"
+    app3.button("hold")
+    assert app3.confirm and app3.confirm_sel == 1, "confirm must default to CANCEL"
+    app3.draw(screen, sc, time.time())
+    app3.button("hold")
+    assert not app3.confirm and not app3.powering_down, "CANCEL failed"
+    app3.button("hold"); app3.button("select"); app3.button("hold")
+    assert app3.powering_down, "POWER OFF via buttons failed"
+    app3.sel = 1                              # brightness -
+    app4 = _app(FakeSensors()); app4.page = 2
+    app4.draw(screen, sc, time.time()); app4.button("select"); app4.button("hold")
+    assert app4.brightness == 80, app4.brightness
+
     # settings buttons + confirm
     app2.page = 2
     app2.draw(screen, sc, time.time())
@@ -180,7 +212,7 @@ def run():
     assert theme.cover_image("boot_bg.jpg", 480, 320) is not None
     assert theme.cover_image("shutdown_screen.jpg", 480, 320) is not None
     pygame.quit()
-    print("SELFTEST OK - 480x320 + 800x480 render, live/missing sensors, "
+    print("SELFTEST OK - 640x480/480x320/800x480 render, buttons, live/missing sensors, "
           "traffic lights, ignition-off shutdown, miles saved")
     return 0
 
@@ -206,7 +238,7 @@ def preview(out="/tmp/rb250_previews"):
         ("rides", FakeSensors(), 1),
         ("settings", FakeSensors(), 2),
     ]
-    for size in ((480, 320), (800, 480)):
+    for size in ((640, 480), (480, 320), (800, 480)):
         screen = pygame.display.set_mode(size)
         sc = Scaler(*size)
         for name, fs, page in shots:

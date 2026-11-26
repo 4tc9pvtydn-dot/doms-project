@@ -7,6 +7,7 @@ from theme import (WHITE, AMBER, RED, GREEN, DIM, FAINT, BG, PANEL, EDGE, SEG_OF
                    cover_image)
 
 NO_SIGNAL = "--"
+RIDES_PER_PAGE = 6
 
 
 def fmt(v, spec):
@@ -174,12 +175,13 @@ def settings_screen(surf, sc, app):
         text(surf, sc, "NO VOLTAGE READING - AUTO SHUTDOWN CAN'T WORK", 15, AMBER,
              midleft=(24, 352))
 
-    btns.append((button(surf, sc, 250, 380, 300, 64, "POWER OFF", fill=(170, 24, 24)),
+    btns.append((button(surf, sc, 250, 376, 300, 60, "POWER OFF", fill=(170, 24, 24)),
                  app.request_shutdown))
+    text(surf, sc, "SELECT = move    HOLD SELECT = press", 15, FAINT, midright=(776, 452))
     return btns
 
 
-def rides_screen(surf, sc, t):
+def rides_screen(surf, sc, t, offset=0):
     """Ride history, newest first (the ride in progress is marked NOW)."""
     from rides import avg_mph
     surf.fill(BG)
@@ -196,7 +198,11 @@ def rides_screen(surf, sc, t):
         text(surf, sc, "No rides yet - rides over 0.1 mile are saved", 20, DIM,
              center=(400, 250))
     cur = t.rides.cur["start"] if t.rides.cur else None
-    for i, r in enumerate(hist[:6]):
+    if len(hist) > RIDES_PER_PAGE:
+        end = min(len(hist), offset + RIDES_PER_PAGE)
+        text(surf, sc, f"{offset + 1}-{end} of {len(hist)}   SELECT = more", 16, DIM,
+             midleft=(24, 446))
+    for i, r in enumerate(hist[offset:offset + RIDES_PER_PAGE]):
         y = 124 + i * 52
         live = r["start"] == cur
         when = "NOW" if live else time.strftime("%d %b %H:%M", time.localtime(r["start"]))
@@ -210,6 +216,11 @@ def rides_screen(surf, sc, t):
                 col = cht_color(cht)
             text(surf, sc, v, 22, col, midleft=(x, y))
         pygame.draw.line(surf, (28, 29, 34), sc.p(24, y + 26), sc.p(776, y + 26), 1)
+
+
+def highlight(surf, sc, rect):
+    pygame.draw.rect(surf, AMBER, rect.inflate(sc.n(8), sc.n(8)), sc.n(3),
+                     border_radius=sc.n(12))
 
 
 def page_dots(surf, sc, count, index):
@@ -255,7 +266,8 @@ def confirm_overlay(surf, sc):
     shade.set_alpha(200)
     surf.blit(shade, (0, 0))
     panel(surf, sc, 160, 130, 480, 220, border=(120, 30, 30))
-    text(surf, sc, "POWER OFF?", 30, WHITE, center=(400, 185))
+    text(surf, sc, "POWER OFF?", 30, WHITE, center=(400, 175))
+    text(surf, sc, "SELECT = switch   HOLD = confirm", 15, DIM, center=(400, 215))
     yes = button(surf, sc, 190, 250, 200, 70, "POWER OFF", fill=(190, 28, 28))
     no = button(surf, sc, 410, 250, 200, 70, "CANCEL")
     return yes, no
