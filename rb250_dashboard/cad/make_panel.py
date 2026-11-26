@@ -11,7 +11,7 @@ from shapely.affinity import scale
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-THICK = 2.0
+THICK = 4.0
 HEIGHT = 130.0
 # (depth from top, full width) taken from the template
 STATIONS = [(5, 80), (18, 119), (37, 130), (62, 135), (100, 142), (HEIGHT, 150)]
