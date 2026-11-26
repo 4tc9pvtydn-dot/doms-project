@@ -47,7 +47,8 @@ class App:
         self.buttons = []
         self.sel = 0          # highlighted settings item
         self.confirm_sel = 1  # 0 = POWER OFF, 1 = CANCEL (safe default)
-        self.scroll = 0       # rides list offset
+        self.ride_sel = 0     # highlighted ride on the Rides page
+        self.detail = False   # showing one ride full-screen
         self.boot_start = time.time()
 
     # ---- brightness: real backlight if the screen has one, else dim overlay
@@ -136,7 +137,7 @@ class App:
             self.page = max(0, min(self.pages - 1, self.page + direction))
 
     def button(self, ev):
-        """Handlebar buttons: 'next' page, 'select' = scroll/move, 'hold' = press."""
+        """Handlebar buttons: 'next' page, 'select' = move highlight, 'hold' = open/press."""
         if self.powering_down or self.halted:
             return
         if self.confirm:
@@ -148,13 +149,23 @@ class App:
                 else:
                     self.confirm = False
             return
+        if self.detail:
+            n = len(self.telemetry.rides.history())
+            if ev == "select" and n:
+                self.ride_sel = (self.ride_sel + 1) % n
+            else:
+                self.detail = False  # HOLD or NEXT = back to the list
+            return
         if ev == "next":
             self.page = (self.page + 1) % self.pages
             self.sel = 0
-            self.scroll = 0
-        elif self.page == 1 and ev == "select":
+            self.ride_sel = 0
+        elif self.page == 1:
             n = len(self.telemetry.rides.history())
-            self.scroll = self.scroll + ui.RIDES_PER_PAGE if self.scroll + ui.RIDES_PER_PAGE < n else 0
+            if ev == "select" and n:
+                self.ride_sel = (self.ride_sel + 1) % n
+            elif ev == "hold" and n:
+                self.detail = True
         elif self.page == 2 and self.buttons:
             if ev == "select":
                 self.sel = (self.sel + 1) % len(self.buttons)
@@ -181,7 +192,10 @@ class App:
             ui.ride_screen(surf, sc, self.telemetry, clock)
             self.buttons = []
         elif self.page == 1:
-            ui.rides_screen(surf, sc, self.telemetry, self.scroll)
+            if self.detail:
+                ui.ride_detail_screen(surf, sc, self.telemetry, self.ride_sel)
+            else:
+                ui.rides_screen(surf, sc, self.telemetry, self.ride_sel)
             self.buttons = []
         else:
             self.buttons = ui.settings_screen(surf, sc, self)

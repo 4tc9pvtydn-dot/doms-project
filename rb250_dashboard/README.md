@@ -31,7 +31,8 @@ rm -f ~/.rb250/odometer.json && sudo systemctl restart rb250-dashboard
 
 ## Buttons
 NEXT (pin 37) changes page. SELECT (pin 36) scrolls rides / moves the
-highlight on Settings; hold SELECT 1s to press. See WIRING.md.
+highlight on Settings; hold SELECT 1s to press. On Rides, hold SELECT to open a ride full-screen
+(SELECT = older ride, hold = back). See WIRING.md. Screenshots: `previews/`.
 
 ## Colours
 | | Green | Amber | Red |

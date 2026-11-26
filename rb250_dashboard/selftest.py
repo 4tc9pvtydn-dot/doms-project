@@ -179,10 +179,18 @@ def run():
         seq.append(app3.page)
     assert seq == [1, 2, 0], seq
     app3.button("next")                      # rides page
-    app3.button("select"); assert app3.scroll == 6
-    app3.button("select"); assert app3.scroll == 12
-    app3.button("select"); assert app3.scroll == 0, "should wrap to top"
+    for _ in range(7):
+        app3.button("select")
+    assert app3.ride_sel == 7
+    app3.draw(screen, sc, time.time())          # second page of the list
+    app3.button("hold"); assert app3.detail, "hold should open ride"
     app3.draw(screen, sc, time.time())
+    app3.button("select"); assert app3.ride_sel == 8 and app3.detail
+    app3.button("hold"); assert not app3.detail, "hold should go back"
+    for _ in range(6):
+        app3.button("select")
+    assert app3.ride_sel == 0, "should wrap to newest"
+    app3.button("hold"); app3.button("next"); assert not app3.detail and app3.page == 1
     app3.button("next")                      # settings
     app3.draw(screen, sc, time.time())
     n = len(app3.buttons)
@@ -236,6 +244,7 @@ def preview(out="/tmp/rb250_previews"):
         ("ride_hot", FakeSensors(speed=61, rpm=8700, cht=222, fuel=9, volt=14.1), 0),
         ("ride_nosensors", FakeSensors(None, None, None, None, None, ("search", 0, 3)), 0),
         ("rides", FakeSensors(), 1),
+        ("ride_detail", FakeSensors(), 1),
         ("settings", FakeSensors(), 2),
     ]
     for size in ((640, 480), (480, 320), (800, 480)):
@@ -247,6 +256,9 @@ def preview(out="/tmp/rb250_previews"):
             _settle(app)
             app.telemetry.peak_rpm = max(app.telemetry.peak_rpm, 6900)
             app.page = page
+            if name.startswith("ride") and page == 1:
+                app.ride_sel = 2
+            app.detail = name == "ride_detail"
             app.draw(screen, sc, time.time())
             pygame.image.save(screen, f"{out}/{name}_{size[0]}.png")
         app = _app(FakeSensors())

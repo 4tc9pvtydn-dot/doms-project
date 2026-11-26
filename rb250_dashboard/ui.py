@@ -181,7 +181,7 @@ def settings_screen(surf, sc, app):
     return btns
 
 
-def rides_screen(surf, sc, t, offset=0):
+def rides_screen(surf, sc, t, sel=0):
     """Ride history, newest first (the ride in progress is marked NOW)."""
     from rides import avg_mph
     surf.fill(BG)
@@ -198,12 +198,16 @@ def rides_screen(surf, sc, t, offset=0):
         text(surf, sc, "No rides yet - rides over 0.1 mile are saved", 20, DIM,
              center=(400, 250))
     cur = t.rides.cur["start"] if t.rides.cur else None
-    if len(hist) > RIDES_PER_PAGE:
-        end = min(len(hist), offset + RIDES_PER_PAGE)
-        text(surf, sc, f"{offset + 1}-{end} of {len(hist)}   SELECT = more", 16, DIM,
+    sel = min(sel, max(0, len(hist) - 1))
+    offset = sel // RIDES_PER_PAGE * RIDES_PER_PAGE
+    if hist:
+        text(surf, sc, f"{sel + 1} of {len(hist)}   SELECT = next   HOLD = open", 16, DIM,
              midleft=(24, 446))
     for i, r in enumerate(hist[offset:offset + RIDES_PER_PAGE]):
         y = 124 + i * 52
+        if offset + i == sel:
+            pygame.draw.rect(surf, (40, 32, 14), sc.r(14, y - 24, 772, 48), border_radius=sc.n(8))
+            pygame.draw.rect(surf, AMBER, sc.r(14, y - 24, 772, 48), sc.n(2), border_radius=sc.n(8))
         live = r["start"] == cur
         when = "NOW" if live else time.strftime("%d %b %H:%M", time.localtime(r["start"]))
         mins = int(r["secs"] // 60)
@@ -216,6 +220,48 @@ def rides_screen(surf, sc, t, offset=0):
                 col = cht_color(cht)
             text(surf, sc, v, 22, col, midleft=(x, y))
         pygame.draw.line(surf, (28, 29, 34), sc.p(24, y + 26), sc.p(776, y + 26), 1)
+
+
+def tile(surf, sc, x, y, w, h, label, value, unit, color=WHITE):
+    panel(surf, sc, x, y, w, h)
+    text(surf, sc, label, 19, DIM, topleft=(x + 16, y + 12))
+    r = text(surf, sc, value, 58, color, digital=True, bottomleft=(x + 16, y + h - 12))
+    if unit:
+        text(surf, sc, unit, 20, DIM, bottomleft=(sc.to_design(r.bottomright)[0] + 8, y + h - 20))
+
+
+def ride_detail_screen(surf, sc, t, sel):
+    """One ride full-screen with big numbers."""
+    from rides import avg_mph
+    surf.fill(BG)
+    hist = t.rides.history()
+    if not hist:
+        return
+    sel = min(sel, len(hist) - 1)
+    r = hist[sel]
+    live = t.rides.cur is not None and r["start"] == t.rides.cur["start"]
+    when = time.strftime("%a %d %b %Y  %H:%M", time.localtime(r["start"]))
+    text(surf, sc, "RIDE IN PROGRESS" if live else "RIDE", 24, AMBER, digital=True,
+         midleft=(24, 32))
+    text(surf, sc, when, 20, WHITE, midright=(776, 32))
+    mins = int(r["secs"] // 60)
+    cht = r.get("max_cht")
+    w, h, gx, gy = 240, 160, 16, 16
+    tiles = [
+        ("DISTANCE", f"{r['miles']:.1f}", "MI", WHITE),
+        ("RIDE TIME", f"{mins // 60}:{mins % 60:02d}", "", WHITE),
+        ("AVERAGE", f"{avg_mph(r):.0f}", "MPH", WHITE),
+        ("TOP SPEED", f"{r['top_mph']:.0f}", "MPH", WHITE),
+        ("PEAK REVS", f"{r['peak_rpm']:.0f}", "RPM",
+         RED if r["peak_rpm"] >= cfg.REDLINE else WHITE),
+        ("HOTTEST HEAD", NO_SIGNAL if cht is None else f"{cht:.0f}", "°C", cht_color(cht)),
+    ]
+    for i, (label, val, unit, col) in enumerate(tiles):
+        x = 24 + (i % 3) * (w + gx)
+        y = 70 + (i // 3) * (h + gy)
+        tile(surf, sc, x, y, w, h, label, val, unit, col)
+    text(surf, sc, f"{sel + 1} of {len(hist)}   SELECT = older ride   HOLD = back", 16, DIM,
+         midleft=(24, 446))
 
 
 def highlight(surf, sc, rect):
