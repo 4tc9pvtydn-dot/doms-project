@@ -33,6 +33,7 @@ UPS HAT keeps the Pi up; auto-shutdown when the switched-12V voltage sensor drop
 - 2026-06: CRUISE page (page 2 of 4: Ride → Cruise → Rides → Settings): large analog speed dial 0–80 (DIAL_MAX_MPH) with needle, lit arc + small digital readout; wide vertical 12-segment fuel bar left and head-temp bar right (0–250°C, amber/red limit ticks, traffic colours, flash at red); larger clock centre-bottom; trip + odo. Page constants RIDE/CRUISE/RIDES/SETTINGS in main.py.
 - 2026-06: Speed dial max 100 mph. Units switch (`units.py`): Settings → SWITCH TO KM/H/MPH, saved in ~/.rb250/settings.json; converts speed, dial (0–160 km/h, labels every 20), trip/odo, rides list + detail; data stays stored in miles (rides.csv stays in miles).
 - 2026-06: 3D-printable dash panel `rb250_dashboard/cad/make_panel.py` → rb250_dash_panel.stl (+ preview PNG + 1:1 A4 PDF template; copy at /app/RB250-dash-panel.stl). 2mm plate, 130 high, widths 80/119/130/135/142 at 5/18/37/62/100mm from top, 150 at leg bottoms; rounded-U gap 90 wide from 111mm, legs 30 wide; screen window 73x56 (NHD viewing area 72.48x55.38 + clearance), top edge on the 119 line (18mm), centred.
+- 2026-06: Panel button holes: two 12mm holes 92mm down, ±25mm from centre (SELECT left, NEXT right); BTN_D/BTN_Y/BTN_X params in make_panel.py.
 
 ## Backlog
 - P0: user builds wake circuit + verifies wake from halt on bench

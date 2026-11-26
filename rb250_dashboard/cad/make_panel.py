@@ -21,6 +21,10 @@ GAP_R = 12.0        # rounded U corners
 # Newhaven NHD-3.5-HDMI-HR-RSXP viewing area 72.48 x 55.38 (+ small clearance)
 WIN_W, WIN_H, WIN_R = 73.0, 56.0, 1.0
 WIN_TOP = 18.0      # top of the window on the 119 mm line
+# two push-button holes below the screen (12 mm panel-mount buttons)
+BTN_D = 12.0
+BTN_Y = 92.0        # centre depth from top (window ends at 74, gap starts at 111)
+BTN_X = 25.0        # +/- from centre: SELECT left, NEXT right
 
 
 def catmull(pts, n=24):
@@ -57,8 +61,15 @@ def window():
     return w.buffer(WIN_R, resolution=8)
 
 
+def buttons():
+    from shapely.geometry import Point
+    return [Point(x, -BTN_Y).buffer(BTN_D / 2, resolution=32) for x in (-BTN_X, BTN_X)]
+
+
 def build():
     plate = outline().difference(window())
+    for b in buttons():
+        plate = plate.difference(b)
     mesh = trimesh.creation.extrude_polygon(plate, THICK)
     assert mesh.is_watertight
     stl = os.path.join(HERE, "rb250_dash_panel.stl")
@@ -90,6 +101,10 @@ def drawings(plate):
             ax.text(0, -(WIN_TOP + WIN_H / 2), f"SCREEN\n{WIN_W:.0f} x {WIN_H:.0f}",
                     ha="center", va="center", fontsize=7)
             ax.text(0, -(GAP_TOP + 10), f"gap {GAP_W:.0f}", ha="center", fontsize=6)
+            for x, name in ((-BTN_X, "SELECT"), (BTN_X, "NEXT")):
+                ax.text(x, -(BTN_Y + BTN_D / 2 + 4), f"{name}\n{BTN_D:.0f} mm", ha="center",
+                        va="top", fontsize=6)
+            ax.text(0, -BTN_Y, f"{2 * BTN_X:.0f} apart", ha="center", va="center", fontsize=5)
             ax.text(-75, -(HEIGHT + 6), f"total {HEIGHT:.0f} high, 150 wide at the legs, "
                     f"{THICK:.0f} mm thick", fontsize=6)
         ax.set_aspect("equal")
