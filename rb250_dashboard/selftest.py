@@ -211,11 +211,28 @@ def run():
     app4.draw(screen, sc, time.time()); app4.button("select"); app4.button("hold")
     assert app4.brightness == 80, app4.brightness
 
+    # units: MPH <-> KM/H, saved, dial top 100 mph / 160 km/h, miles stay stored as miles
+    import units
+    units.load(os.path.join(tmp, "settings.json"))
+    assert not units.kmh and units.dial_max() == 100
+    units.toggle()
+    assert units.kmh and units.dial_max() == 160 and abs(units.spd(100) - 160.9) < 0.1
+    units.load()
+    assert units.kmh, "km/h choice not saved"
+    for page in range(4):
+        app3 = _app(FakeSensors()); app3.page = page
+        app3.draw(screen, sc, time.time())
+    units.toggle()
+    units.load()
+    assert not units.kmh
+
     # settings buttons + confirm
     app2.page = m.SETTINGS
     app2.draw(screen, sc, time.time())
+    import units as _u
     for rect, cb in app2.buttons:
-        cb()
+        if cb is not _u.toggle:
+            cb()
     assert app2.confirm
     app2.confirm = False
     # graphics
@@ -231,6 +248,9 @@ def preview(out="/tmp/rb250_previews"):
     os.makedirs(out, exist_ok=True)
     telemetry.ODO_PATH = os.path.join(out, "odo.json")
     cfg.RIDES_FILE = os.path.join(out, "rides.json")
+    import units
+    units.load(os.path.join(out, "settings.json"))
+    units.kmh = False
     now = time.time()
     demo = [(now - 86400 * d - 3600 * h, m, s_, top, rpm, c) for d, h, m, s_, top, rpm, c in
             [(1, 2, 23.4, 3100, 58, 8240, 196), (2, 5, 8.2, 1260, 47, 7650, 184),
@@ -266,6 +286,15 @@ def preview(out="/tmp/rb250_previews"):
             app.detail = name == "ride_detail"
             app.draw(screen, sc, time.time())
             pygame.image.save(screen, f"{out}/{name}_{size[0]}.png")
+        units.kmh = True
+        for name, page in (("cruise_kmh", 1), ("settings_kmh", 3), ("ride_kmh", 0)):
+            app = _app(FakeSensors(speed=47))
+            app.telemetry.odo, app.telemetry.trip = 1245.3, 23.7
+            _settle(app)
+            app.page = page
+            app.draw(screen, sc, time.time())
+            pygame.image.save(screen, f"{out}/{name}_{size[0]}.png")
+        units.kmh = False
         app = _app(FakeSensors())
         app.boot_start = time.time() - 1.6
         app.draw(screen, sc, time.time())

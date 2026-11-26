@@ -23,12 +23,12 @@ rm -f ~/.rb250/odometer.json && sudo systemctl restart rb250-dashboard
 ## Screens
 - **Ride**: RPM bar 1–10k + digital RPM + peak marker, big MPH, head temp,
   fuel, battery, trip + odometer. GPS status top centre.
-- **Cruise** (NEXT button): long-ride view — big analog speedo, tall fuel bar
+- **Cruise** (NEXT button): long-ride view — big analog speedo (0–100 mph / 0–160 km/h), tall fuel bar
   left, tall head-temp bar right (amber/red limit ticks), clock, trip + odo.
 - **Rides** (NEXT again): every ride (ignition on → off) with date, miles,
   time, average + top speed, peak revs and hottest head temp. Rides under
   0.1 mile aren't kept. The clock and dates are set from GPS, so no Wi-Fi needed.
-- **Settings** (NEXT once more): reset trip, brightness, sensor status,
+- **Settings** (NEXT once more): reset trip, brightness, MPH ↔ KM/H, sensor status,
   auto-shutdown status, POWER OFF.
 
 ## Buttons

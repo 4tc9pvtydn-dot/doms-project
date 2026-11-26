@@ -3,6 +3,7 @@ import math
 import time
 import pygame
 import config as cfg
+import units as U
 from theme import (WHITE, AMBER, RED, GREEN, DIM, FAINT, BG, PANEL, EDGE, SEG_OFF,
                    blink, text, fuel_color, cht_color, volt_color, rpm_zone_color,
                    cover_image)
@@ -91,10 +92,10 @@ def ride_screen(surf, sc, t, clock_str):
         text(surf, sc, "NO RPM SIGNAL", 17, AMBER, topleft=(24, 200))
 
     # speed
-    spd = None if t.speed is None else round(t.speed)
+    spd = None if t.speed is None else round(U.spd(t.speed))
     text(surf, sc, NO_SIGNAL if spd is None else spd, 170, WHITE, digital=True,
          midbottom=(235, 400))
-    text(surf, sc, "MPH", 24, DIM, midtop=(235, 402))
+    text(surf, sc, U.spd_label(), 24, DIM, midtop=(235, 402))
 
     # right column gauges
     hot = t.cht is not None and t.cht > cfg.CHT_RED
@@ -111,10 +112,10 @@ def ride_screen(surf, sc, t, clock_str):
 
     # miles strip
     text(surf, sc, "TRIP", 18, DIM, bottomleft=(24, 462))
-    text(surf, sc, f"{t.trip:.1f}", 24, WHITE, digital=True, bottomleft=(72, 466))
+    text(surf, sc, f"{U.dist(t.trip):.1f}", 24, WHITE, digital=True, bottomleft=(72, 466))
     text(surf, sc, "ODO", 18, DIM, bottomleft=(470, 462))
-    text(surf, sc, f"{t.odo:,.0f}", 24, WHITE, digital=True, bottomleft=(512, 466))
-    text(surf, sc, "MI", 18, DIM, bottomright=(776, 462))
+    text(surf, sc, f"{U.dist(t.odo):,.0f}", 24, WHITE, digital=True, bottomleft=(512, 466))
+    text(surf, sc, U.dist_label(), 18, DIM, bottomright=(776, 462))
 
     if hot:
         warn_banner(surf, sc, "ENGINE HOT - EASE OFF")
@@ -147,10 +148,12 @@ def vbar(surf, sc, x, label, value, unit, frac, color, marks=(), flash=False):
 
 
 def speed_dial(surf, sc, mph):
-    """Large analog speedo. 0..DIAL_MAX over a 240 degree sweep."""
+    """Large analog speedo over a 240 degree sweep (0-100 mph or 0-160 km/h)."""
+    mph = U.spd(mph)  # now in display units
     cx, cy = sc.p(400, 214)
     rad = sc.n(196)
-    top = cfg.DIAL_MAX_MPH
+    top = U.dial_max()
+    minor, major_step = (10, 20) if U.kmh else (5, 10)
     a0, sweep = math.radians(210), math.radians(240)
 
     def at(v, r):
@@ -164,12 +167,12 @@ def speed_dial(surf, sc, mph):
         steps = max(2, int(60 * min(1.0, mph / top)))
         pts = [at(mph * i / steps, rad - sc.n(14)) for i in range(steps + 1)]
         pygame.draw.lines(surf, AMBER, False, pts, sc.n(8))
-    for v in range(0, top + 1, 5):
-        major = v % 10 == 0
+    for v in range(0, top + 1, minor):
+        major = v % major_step == 0
         pygame.draw.line(surf, WHITE if major else FAINT, at(v, rad - sc.n(26 if major else 22)),
                          at(v, rad - sc.n(40 if major else 32)), sc.n(4 if major else 2))
         if major:
-            lbl = sc.font(24, True).render(str(v), True, WHITE)
+            lbl = sc.font(22, True).render(str(v), True, WHITE)
             surf.blit(lbl, lbl.get_rect(center=at(v, rad - sc.n(72))))
     # needle
     if mph is not None:
@@ -185,7 +188,7 @@ def speed_dial(surf, sc, mph):
     val = NO_SIGNAL if mph is None else f"{round(mph)}"
     img = sc.font(48, True).render(val, True, WHITE)
     surf.blit(img, img.get_rect(center=(cx, cy + sc.n(92))))
-    unit = sc.font(18).render("MPH" if mph is not None else "NO GPS", True,
+    unit = sc.font(18).render(U.spd_label() if mph is not None else "NO GPS", True,
                               DIM if mph is not None else AMBER)
     surf.blit(unit, unit.get_rect(center=(cx, cy + sc.n(132))))
 
@@ -204,9 +207,9 @@ def cruise_screen(surf, sc, t, clock_str):
     speed_dial(surf, sc, t.speed)
     text(surf, sc, clock_str, 44, WHITE, digital=True, midbottom=(400, 452))
     text(surf, sc, "TRIP", 18, DIM, bottomleft=(150, 448))
-    text(surf, sc, f"{t.trip:.1f}", 24, WHITE, digital=True, bottomleft=(198, 452))
+    text(surf, sc, f"{U.dist(t.trip):.1f}", 24, WHITE, digital=True, bottomleft=(198, 452))
     text(surf, sc, "ODO", 18, DIM, bottomleft=(500, 448))
-    text(surf, sc, f"{t.odo:,.0f}", 24, WHITE, digital=True, bottomleft=(542, 452))
+    text(surf, sc, f"{U.dist(t.odo):,.0f}", 24, WHITE, digital=True, bottomleft=(542, 452))
 
 
 def warn_banner(surf, sc, msg):
@@ -230,30 +233,37 @@ def settings_screen(surf, sc, app):
     btns = []
     t = app.telemetry
 
-    text(surf, sc, "TRIP", 18, DIM, midleft=(24, 96))
-    text(surf, sc, f"{t.trip:.1f} MI", 26, WHITE, digital=True, midleft=(150, 96))
-    btns.append((button(surf, sc, 560, 72, 216, 50, "RESET TRIP"), t.reset_trip))
+    text(surf, sc, "TRIP", 18, DIM, midleft=(24, 86))
+    text(surf, sc, f"{U.dist(t.trip):.1f} {U.dist_label()}", 26, WHITE, digital=True,
+         midleft=(150, 86))
+    btns.append((button(surf, sc, 560, 64, 216, 44, "RESET TRIP"), t.reset_trip))
 
-    text(surf, sc, "BRIGHTNESS", 18, DIM, midleft=(24, 166))
-    text(surf, sc, f"{app.brightness}%", 26, WHITE, digital=True, midleft=(230, 166))
-    btns.append((button(surf, sc, 560, 142, 100, 50, "-"), lambda: app.set_brightness(-20)))
-    btns.append((button(surf, sc, 676, 142, 100, 50, "+"), lambda: app.set_brightness(20)))
+    text(surf, sc, "BRIGHTNESS", 18, DIM, midleft=(24, 142))
+    text(surf, sc, f"{app.brightness}%", 26, WHITE, digital=True, midleft=(230, 142))
+    btns.append((button(surf, sc, 560, 120, 100, 44, "-"), lambda: app.set_brightness(-20)))
+    btns.append((button(surf, sc, 676, 120, 100, 44, "+"), lambda: app.set_brightness(20)))
 
-    text(surf, sc, "SENSORS", 18, DIM, midleft=(24, 236))
+    text(surf, sc, "UNITS", 18, DIM, midleft=(24, 198))
+    text(surf, sc, "KM/H + KM" if U.kmh else "MPH + MILES", 26, WHITE, digital=True,
+         midleft=(230, 198))
+    btns.append((button(surf, sc, 560, 176, 216, 44, "SWITCH TO MPH" if U.kmh else "SWITCH TO KM/H"),
+                 U.toggle))
+
+    text(surf, sc, "SENSORS", 18, DIM, midleft=(24, 250))
     x = 160
     for name, state, ok in app.sensors.status():
         col = GREEN if ok else (DIM if state == "OFF" else AMBER)
-        r = text(surf, sc, f"{name} {state}", 18, col, midleft=(x, 236))
+        r = text(surf, sc, f"{name} {state}", 18, col, midleft=(x, 250))
         x = sc.to_design(r.midright)[0] + 26
 
     if t.ups is None:
-        text(surf, sc, "UPS BATTERY", 18, DIM, midleft=(24, 290))
-        text(surf, sc, "NO SIGNAL", 18, AMBER, midleft=(230, 290))
+        text(surf, sc, "UPS BATTERY", 18, DIM, midleft=(24, 294))
+        text(surf, sc, "NO SIGNAL", 18, AMBER, midleft=(230, 294))
     else:
         uv, up = t.ups
         ucol = RED if up < cfg.UPS_LOW_PCT else (AMBER if up < 40 else GREEN)
-        text(surf, sc, "UPS BATTERY", 18, DIM, midleft=(24, 290))
-        text(surf, sc, f"{up:.0f}%  {uv:.2f}V", 24, ucol, digital=True, midleft=(230, 290))
+        text(surf, sc, "UPS BATTERY", 18, DIM, midleft=(24, 294))
+        text(surf, sc, f"{up:.0f}%  {uv:.2f}V", 24, ucol, digital=True, midleft=(230, 294))
 
     volt = t.volt
     auto = "ON" if cfg.POWER_LOSS_SHUTDOWN else "OFF"
@@ -263,7 +273,7 @@ def settings_screen(surf, sc, app):
         text(surf, sc, "NO VOLTAGE READING - AUTO SHUTDOWN CAN'T WORK", 15, AMBER,
              midleft=(24, 352))
 
-    btns.append((button(surf, sc, 250, 376, 300, 60, "POWER OFF", fill=(170, 24, 24)),
+    btns.append((button(surf, sc, 250, 378, 300, 56, "POWER OFF", fill=(170, 24, 24)),
                  app.request_shutdown))
     text(surf, sc, "SELECT = move    HOLD SELECT = press", 15, FAINT, midright=(776, 452))
     return btns
@@ -276,8 +286,10 @@ def rides_screen(surf, sc, t, sel=0):
     text(surf, sc, "RIDES", 24, AMBER, digital=True, midleft=(24, 30))
     hist = t.rides.history()
     total = sum(r["miles"] for r in hist)
-    text(surf, sc, f"{len(hist)} rides  {total:,.0f} mi", 18, DIM, midright=(776, 30))
-    cols = [(24, "DATE"), (190, "MILES"), (290, "TIME"), (390, "AVG"), (480, "TOP"),
+    text(surf, sc, f"{len(hist)} rides  {U.dist(total):,.0f} {U.dist_label().lower()}", 18, DIM,
+         midright=(776, 30))
+    cols = [(24, "DATE"), (190, "MILES" if not U.kmh else "KM"), (290, "TIME"), (390, "AVG"),
+            (480, "TOP"),
             (570, "PEAK RPM"), (700, "MAX °C")]
     for x, h in cols:
         text(surf, sc, h, 16, DIM, midleft=(x, 78))
@@ -300,8 +312,8 @@ def rides_screen(surf, sc, t, sel=0):
         when = "NOW" if live else time.strftime("%d %b %H:%M", time.localtime(r["start"]))
         mins = int(r["secs"] // 60)
         cht = r.get("max_cht")
-        vals = [when, f"{r['miles']:.1f}", f"{mins // 60}:{mins % 60:02d}", f"{avg_mph(r):.0f}",
-                f"{r['top_mph']:.0f}", f"{r['peak_rpm']:.0f}", NO_SIGNAL if cht is None else f"{cht:.0f}"]
+        vals = [when, f"{U.dist(r['miles']):.1f}", f"{mins // 60}:{mins % 60:02d}",
+                f"{U.spd(avg_mph(r)):.0f}", f"{U.spd(r['top_mph']):.0f}", f"{r['peak_rpm']:.0f}", NO_SIGNAL if cht is None else f"{cht:.0f}"]
         for (x, _), v in zip(cols, vals):
             col = AMBER if live and x == 24 else WHITE
             if x == 700 and cht is not None:
@@ -336,10 +348,10 @@ def ride_detail_screen(surf, sc, t, sel):
     cht = r.get("max_cht")
     w, h, gx, gy = 240, 160, 16, 16
     tiles = [
-        ("DISTANCE", f"{r['miles']:.1f}", "MI", WHITE),
+        ("DISTANCE", f"{U.dist(r['miles']):.1f}", U.dist_label(), WHITE),
         ("RIDE TIME", f"{mins // 60}:{mins % 60:02d}", "", WHITE),
-        ("AVERAGE", f"{avg_mph(r):.0f}", "MPH", WHITE),
-        ("TOP SPEED", f"{r['top_mph']:.0f}", "MPH", WHITE),
+        ("AVERAGE", f"{U.spd(avg_mph(r)):.0f}", U.spd_label(), WHITE),
+        ("TOP SPEED", f"{U.spd(r['top_mph']):.0f}", U.spd_label(), WHITE),
         ("PEAK REVS", f"{r['peak_rpm']:.0f}", "RPM",
          RED if r["peak_rpm"] >= cfg.REDLINE else WHITE),
         ("HOTTEST HEAD", NO_SIGNAL if cht is None else f"{cht:.0f}", "°C", cht_color(cht)),

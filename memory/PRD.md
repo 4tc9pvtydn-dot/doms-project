@@ -31,6 +31,7 @@ UPS HAT keeps the Pi up; auto-shutdown when the switched-12V voltage sensor drop
 - 2026-06: Screen confirmed = Newhaven NHD-3.5-HDMI-HR-RSXP 640x480 HDMI, no touch. Scaler now stretches (sx/sy) to fill any aspect. Two GPIO buttons (`buttons.py`, gpiozero, pull-ups): NEXT BCM26/pin37 cycles pages; SELECT BCM16/pin36 = scroll rides / move highlight, hold 1s = press; confirm defaults to CANCEL. Keyboard N/Space/Enter mirrors for laptop.
 - 2026-06: Ride detail view: Rides page SELECT moves a highlight row by row (auto pages, wraps), HOLD opens the ride full-screen (6 big tiles: distance, time, avg, top, peak revs red≥redline, hottest head CHT-coloured); in detail SELECT = older ride, HOLD/NEXT = back. Previews in rb250_dashboard/previews/.
 - 2026-06: CRUISE page (page 2 of 4: Ride → Cruise → Rides → Settings): large analog speed dial 0–80 (DIAL_MAX_MPH) with needle, lit arc + small digital readout; wide vertical 12-segment fuel bar left and head-temp bar right (0–250°C, amber/red limit ticks, traffic colours, flash at red); larger clock centre-bottom; trip + odo. Page constants RIDE/CRUISE/RIDES/SETTINGS in main.py.
+- 2026-06: Speed dial max 100 mph. Units switch (`units.py`): Settings → SWITCH TO KM/H/MPH, saved in ~/.rb250/settings.json; converts speed, dial (0–160 km/h, labels every 20), trip/odo, rides list + detail; data stays stored in miles (rides.csv stays in miles).
 
 ## Backlog
 - P0: user builds wake circuit + verifies wake from halt on bench

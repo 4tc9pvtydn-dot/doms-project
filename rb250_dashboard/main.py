@@ -23,6 +23,7 @@ import config as cfg  # noqa: E402
 import ui  # noqa: E402
 from theme import Scaler  # noqa: E402
 from telemetry import Telemetry  # noqa: E402
+import units  # noqa: E402
 
 BOOT_SECONDS = 2.6
 GOODBYE_SECONDS = 3.0
@@ -245,6 +246,7 @@ def main():
 
     from sensors import Sensors
     from buttons import Buttons
+    units.load()
     app = App(Sensors())
     btns = Buttons()
     clock = pygame.time.Clock()
